@@ -28,15 +28,23 @@ public class Result<T> implements Serializable {
 
     // 成功静态方法
     public static <T> Result<T> success(T data) {
-        return new Result<>(StatusCode.SUCCESS, "操作成功", data);
+        return new Result<>(StatusCode.SUCCESS.getCode(), StatusCode.SUCCESS.getMessage(), data);
     }
 
     public static <T> Result<T> success(String message, T data) {
-        return new Result<>(StatusCode.SUCCESS, message, data);
+        return new Result<>(StatusCode.SUCCESS.getCode(), message, data);
     }
 
     // 失败静态方法
     public static <T> Result<T> error(Integer code, String message) {
         return new Result<>(code, message, (T) null);
+    }
+
+    public static <T> Result<T> error(StatusCode statusCode) {
+        return new Result<>(statusCode.getCode(), statusCode.getMessage(), (T) null);
+    }
+
+    public static <T> Result<T> error(StatusCode statusCode, String message) {
+        return new Result<>(statusCode.getCode(), message, (T) null);
     }
 }
