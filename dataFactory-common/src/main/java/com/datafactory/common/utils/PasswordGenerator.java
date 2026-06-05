@@ -12,7 +12,7 @@ public class PasswordGenerator {
 
     public static void main(String[] args) {
         // 要生成的密码
-        String rawPassword = "admin123";
+        String rawPassword = "CGyjs123456";
         // 生成加密后的密码
         String encodedPassword = encoder.encode(rawPassword);
         

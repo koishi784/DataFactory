@@ -569,6 +569,7 @@ INSERT INTO sys_route (route_name, route_path, method, module, permission, is_au
 ('获取当前用户信息', '/api/v1/auth/user-info', 'GET', 'auth', NULL, 1, '获取当前用户信息'),
 ('刷新令牌', '/api/v1/auth/refresh-token', 'POST', 'auth', NULL, 0, '刷新访问令牌'),
 ('修改密码', '/api/v1/auth/password', 'PUT', 'auth', NULL, 1, '修改密码'),
+('修改个人信息', '/api/v1/auth/profile', 'PUT', 'auth', NULL, 1, '修改个人信息'),
 
 -- 接口分类管理
 ('查询接口分类树', '/api/v1/api-categories/tree', 'GET', 'api', 'api:read', 1, '获取全量接口分类树'),

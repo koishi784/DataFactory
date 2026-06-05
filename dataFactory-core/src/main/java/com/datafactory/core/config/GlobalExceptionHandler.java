@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -56,6 +57,15 @@ public class GlobalExceptionHandler {
     public Result<Void> handleMissingServletRequestParameter(MissingServletRequestParameterException e) {
         log.warn("缺少请求参数: {}", e.getParameterName());
         return Result.error(StatusCode.BAD_REQUEST, "缺少请求参数: " + e.getParameterName());
+    }
+
+    /**
+     * 缺少请求头
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public Result<Void> handleMissingRequestHeader(MissingRequestHeaderException e) {
+        log.warn("缺少请求头: {}", e.getHeaderName());
+        return Result.error(StatusCode.UNAUTHORIZED, "缺少认证令牌，请先登录");
     }
 
     /**
