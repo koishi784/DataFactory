@@ -25,7 +25,7 @@ public enum StatusCode {
     UNAUTHORIZED(100401, "未授权，请先登录"),
     FORBIDDEN(100403, "禁止访问，权限不足"),
     NOT_FOUND(100404, "资源不存在"),
-    METHOD_NOT_ALLOWED(100405, "请求方法不支持"),
+    RESOURCE_STATUS_NOT_ALLOWED(100405, "资源状态不允许当前操作"),
     REQUEST_TIMEOUT(100408, "请求超时"),
     UNSUPPORTED_MEDIA_TYPE(100415, "不支持的媒体类型"),
     VALIDATION_FAILED(100422, "参数校验失败"),
@@ -62,6 +62,10 @@ public enum StatusCode {
     API_CALL_FAILED(100708, "接口调用失败"),
     TASK_EXECUTION_FAILED(100709, "任务执行失败"),
     DEPENDENCY_NOT_MET(100710, "依赖条件不满足"),
+
+    // ========== 接口管理模块 (1004XX) ==========
+    BATCH_OPERATION_FAILED(100416, "批量操作校验失败"),
+    RESOURCE_REFERENCED(100417, "资源被引用，无法操作"),
     ;
 
     private final Integer code;
