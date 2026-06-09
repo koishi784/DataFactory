@@ -46,13 +46,19 @@ public interface IApiInfoService {
     /**
      * 新增注册接口
      *
+     * 创建接口基本信息，同时保存请求头和请求参数配置，初始状态为 DRAFT(0)。
+     * 接口名称（apiName）和接口 URL（url）均为全局唯一。
+     *
      * @param request 新增接口请求参数
      * @return 创建的接口实体（状态为 DRAFT）
      */
     ApiInfo createApi(ApiCreateRequest request);
 
     /**
-     * 编辑接口（草稿状态）
+     * 编辑接口
+     *
+     * 仅未发布(0)和已停用(2)状态可编辑。已停用状态下不可编辑 url（Path）字段。
+     * 已发布(1)状态不可编辑。接口名称（apiName）和接口 URL（url）修改后需保持全局唯一。
      *
      * @param id      接口ID
      * @param request 编辑接口请求参数
@@ -62,7 +68,7 @@ public interface IApiInfoService {
     /**
      * 发布接口
      *
-     * 将 DRAFT 状态的接口变更为 PUBLISHED
+     * 将未发布(0)或已停用(2)状态的接口发布为已发布(1)。
      *
      * @param id 接口ID
      */

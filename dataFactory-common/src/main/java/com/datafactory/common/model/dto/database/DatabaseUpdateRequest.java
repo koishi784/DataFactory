@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -17,9 +18,10 @@ import lombok.Data;
 @Data
 public class DatabaseUpdateRequest {
 
-    @Schema(description = "连接名称", example = "生产订单库", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "连接名称，仅支持中英文、数字、下划线，最大 50 字符，全局唯一", example = "生产订单库", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "连接名称不能为空")
     @Size(max = 50, message = "连接名称最大 50 字符")
+    @Pattern(regexp = "^[\\u4e00-\\u9fa5a-zA-Z0-9_]+$", message = "连接名称仅支持中英文、数字、下划线")
     private String connectionName;
 
     @Schema(description = "数据库类型：MYSQL/POSTGRESQL/ORACLE/SQLSERVER/HIVE/CLICKHOUSE", example = "MYSQL", requiredMode = Schema.RequiredMode.REQUIRED)

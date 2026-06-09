@@ -91,6 +91,7 @@ public class IApiCategoryServiceImpl extends ServiceImpl<ApiCategoryMapper, ApiC
      * 新增分类
      *
      * 根据 parentId 自动计算层级：顶级（parentId=0）层级为 1，子分类层级为父级层级 + 1。
+     * 同一父级下子分类名称不可重复。
      *
      * @param request 新增分类请求参数
      * @return 创建的完整分类实体
@@ -98,6 +99,15 @@ public class IApiCategoryServiceImpl extends ServiceImpl<ApiCategoryMapper, ApiC
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ApiCategory createCategory(ApiCategoryCreateRequest request) {
+        // 0. 校验同一父级下名称唯一性
+        Long existsCount = lambdaQuery()
+                .eq(ApiCategory::getParentId, request.getParentId())
+                .eq(ApiCategory::getName, request.getName())
+                .count();
+        if (existsCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "同一父级下已存在同名分类");
+        }
+
         // 1. 计算层级
         int level;
         if (request.getParentId() == 0L) {
@@ -130,9 +140,11 @@ public class IApiCategoryServiceImpl extends ServiceImpl<ApiCategoryMapper, ApiC
     /**
      * 编辑分类
      *
+     * 修改后的名称不可与同一父级下其他分类重名。
+     *
      * @param id      分类ID
      * @param request 编辑分类请求参数
-     * @throws BusinessException 分类不存在时抛出
+     * @throws BusinessException 分类不存在或名称冲突时抛出
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -145,7 +157,17 @@ public class IApiCategoryServiceImpl extends ServiceImpl<ApiCategoryMapper, ApiC
             throw new BusinessException(StatusCode.NOT_FOUND, "分类不存在");
         }
 
-        // 2. 更新字段
+        // 2. 校验同一父级下名称唯一性（排除自身）
+        Long existsCount = lambdaQuery()
+                .eq(ApiCategory::getParentId, category.getParentId())
+                .eq(ApiCategory::getName, request.getName())
+                .ne(ApiCategory::getId, id)
+                .count();
+        if (existsCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "同一父级下已存在同名分类");
+        }
+
+        // 3. 更新字段
         category.setName(request.getName());
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());

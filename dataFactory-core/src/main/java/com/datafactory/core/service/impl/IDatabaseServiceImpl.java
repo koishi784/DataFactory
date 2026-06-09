@@ -128,6 +128,7 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
      * 新增数据库连接
      *
      * 密码使用 AES 加密后存储，初始状态为 DRAFT(0)。
+     * 校验 connectionName 全局唯一性及 (host, port, databaseName) 组合唯一性。
      *
      * @param request 新增连接请求参数
      * @return 创建的连接实体
@@ -135,7 +136,25 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DatabaseConnection createDatabase(DatabaseCreateRequest request) {
-        // 1. 创建实体
+        // 1. 校验连接名称唯一性
+        Long nameCount = lambdaQuery()
+                .eq(DatabaseConnection::getConnectionName, request.getConnectionName())
+                .count();
+        if (nameCount > 0) {
+            throw new BusinessException(100409, "连接名称已存在");
+        }
+
+        // 2. 校验 (host, port, databaseName) 组合唯一性
+        Long comboCount = lambdaQuery()
+                .eq(DatabaseConnection::getHost, request.getHost())
+                .eq(DatabaseConnection::getPort, request.getPort())
+                .eq(DatabaseConnection::getDatabaseName, request.getDatabaseName())
+                .count();
+        if (comboCount > 0) {
+            throw new BusinessException(100409, "相同主机、端口和数据库名称的组合已存在");
+        }
+
+        // 3. 创建实体
         DatabaseConnection connection = new DatabaseConnection();
         connection.setConnectionName(request.getConnectionName());
         connection.setDbType(request.getDbType().toUpperCase());
@@ -279,7 +298,7 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
     /**
      * 发布数据库连接
      *
-     * 将 DRAFT(0) 状态的连接变更为 PUBLISHED(1)。
+     * 将未发布（0）或已停用（2）状态的连接发布为已发布（1）。
      *
      * @param id 连接ID
      */
@@ -292,8 +311,8 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
         if (connection == null) {
             throw new BusinessException(StatusCode.NOT_FOUND, "数据库连接不存在");
         }
-        if (connection.getStatus() != 0) {
-            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "仅未发布状态的数据库连接可发布");
+        if (connection.getStatus() == 1) {
+            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "连接已发布，无需重复发布");
         }
 
         lambdaUpdate()
@@ -359,7 +378,7 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
     /**
      * 批量发布数据库连接
      *
-     * 校验规则：所选连接不能包含已发布(1)或已停用(2)状态的连接。
+     * 校验规则：所选连接须全部为未发布（0）或已停用（2）状态，不能包含已发布（1）状态。
      *
      * @param request 批量操作请求
      */
@@ -378,10 +397,10 @@ public class IDatabaseServiceImpl extends ServiceImpl<DatabaseConnectionMapper, 
             throw new BusinessException(StatusCode.NOT_FOUND, "部分数据库连接不存在");
         }
 
-        // 3. 校验是否包含已发布或已停用连接
-        boolean hasInvalid = dbList.stream().anyMatch(db -> db.getStatus() != 0);
-        if (hasInvalid) {
-            throw new BusinessException(StatusCode.BATCH_OPERATION_FAILED, "所选数据库连接中包含已发布或已停用状态的连接，操作不合法");
+        // 3. 校验是否包含已发布连接
+        boolean hasPublished = dbList.stream().anyMatch(db -> db.getStatus() == 1);
+        if (hasPublished) {
+            throw new BusinessException(StatusCode.BATCH_OPERATION_FAILED, "所选数据库连接中包含已发布状态的连接，操作不合法");
         }
 
         // 4. 批量更新为已发布

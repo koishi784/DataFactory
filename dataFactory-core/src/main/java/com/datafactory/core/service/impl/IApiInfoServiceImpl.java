@@ -63,12 +63,14 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
      * 支持多条件筛选（关键词、状态、分类、来源），排序规则：
      * 优先级一：按状态 DRAFT(0) → PUBLISHED(1) → DISABLED(2)
      * 优先级二：按更新时间倒序（默认）或正序
+     * 优先级三：按接口分类在目录中的顺序（sort_order）
+     * 优先级四：按接口名称升序
      *
      * @param pageNum    页码
      * @param pageSize   每页条数
      * @param keyword    关键词
      * @param status     状态筛选
-     * @param categoryId 分类ID
+     * @param categoryId 分类ID筛选（查询该分类及其所有后代分类下的接口）
      * @param source     来源筛选
      * @param sortOrder  更新时间排序方向
      * @return 分页结果
@@ -102,18 +104,22 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             }
         }
 
+        // 分类ID筛选：查询该分类及其所有后代分类下的接口
         if (categoryId != null) {
-            queryWrapper.eq(ApiInfo::getCategoryId, categoryId);
+            List<Long> categoryIds = getDescendantCategoryIds(categoryId);
+            queryWrapper.in(ApiInfo::getCategoryId, categoryIds);
         }
 
         if (source != null && !source.isBlank()) {
             queryWrapper.eq(ApiInfo::getSource, source);
         }
 
-        // 3. 排序：状态优先（DRAFT=0 → PUBLISHED=1 → DISABLED=2），再按更新时间
+        // 3. 排序：四级排序（状态→更新时间→分类目录顺序→接口名称）
         boolean sortDesc = sortOrder == null || "desc".equalsIgnoreCase(sortOrder);
         String sortDir = sortDesc ? "DESC" : "ASC";
-        queryWrapper.last("ORDER BY FIELD(status, 0, 1, 2), update_time " + sortDir);
+        queryWrapper.last("ORDER BY FIELD(status, 0, 1, 2), update_time " + sortDir
+                + ", (SELECT COALESCE(sort_order, 0) FROM api_category WHERE id = category_id) ASC"
+                + ", api_name ASC");
 
         // 4. 执行分页查询
         Page<ApiInfo> apiInfoPage = page(page, queryWrapper);
@@ -191,7 +197,23 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             throw new BusinessException(StatusCode.NOT_FOUND, "所属分类不存在");
         }
 
-        // 2. 创建接口基本信息
+        // 2. 校验接口名称全局唯一性
+        Long nameCount = lambdaQuery()
+                .eq(ApiInfo::getApiName, request.getApiName())
+                .count();
+        if (nameCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "接口名称已存在，请使用其他名称");
+        }
+
+        // 3. 校验接口 URL 全局唯一性
+        Long urlCount = lambdaQuery()
+                .eq(ApiInfo::getUrl, request.getUrl())
+                .count();
+        if (urlCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "接口 URL 已存在，请使用其他 URL");
+        }
+
+        // 4. 创建接口基本信息
         ApiInfo apiInfo = new ApiInfo();
         apiInfo.setApiName(request.getApiName());
         apiInfo.setApiDescription(request.getApiDescription());
@@ -253,9 +275,10 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
     }
 
     /**
-     * 编辑接口（草稿状态）
+     * 编辑接口
      *
-     * 仅 DRAFT(0) 状态的接口可编辑，更新基本信息并重新保存请求头和请求参数配置。
+     * 仅未发布(0)和已停用(2)状态可编辑。已停用状态下不可编辑 url（Path）字段。
+     * 已发布(1)状态不可编辑。
      *
      * @param id      接口ID
      * @param request 编辑接口请求参数
@@ -271,18 +294,41 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             throw new BusinessException(StatusCode.NOT_FOUND, "接口不存在");
         }
 
-        // 2. 校验状态（仅草稿状态可编辑）
-        if (apiInfo.getStatus() != 0) {
-            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "已发布或已停用的接口不可编辑");
+        // 2. 校验状态（仅未发布和已停用状态可编辑）
+        if (apiInfo.getStatus() != 0 && apiInfo.getStatus() != 2) {
+            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "已发布状态的接口不可编辑");
         }
 
-        // 3. 校验分类是否存在
+        // 3. 已停用状态下不可修改 url（Path）字段
+        if (apiInfo.getStatus() == 2 && !apiInfo.getUrl().equals(request.getUrl())) {
+            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "已停用状态下不可修改 Path 字段");
+        }
+
+        // 4. 校验接口名称全局唯一性（排除自身）
+        Long nameCount = lambdaQuery()
+                .eq(ApiInfo::getApiName, request.getApiName())
+                .ne(ApiInfo::getId, id)
+                .count();
+        if (nameCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "接口名称已存在，请使用其他名称");
+        }
+
+        // 5. 校验接口 URL 全局唯一性（排除自身）
+        Long urlCount = lambdaQuery()
+                .eq(ApiInfo::getUrl, request.getUrl())
+                .ne(ApiInfo::getId, id)
+                .count();
+        if (urlCount > 0) {
+            throw new BusinessException(StatusCode.DATA_EXISTS, "接口 URL 已存在，请使用其他 URL");
+        }
+
+        // 6. 校验分类是否存在
         ApiCategory category = apiCategoryMapper.selectById(request.getCategoryId());
         if (category == null) {
             throw new BusinessException(StatusCode.NOT_FOUND, "所属分类不存在");
         }
 
-        // 4. 更新基本信息
+        // 5. 更新基本信息
         apiInfo.setApiName(request.getApiName());
         apiInfo.setApiDescription(request.getApiDescription());
         apiInfo.setCategoryId(request.getCategoryId());
@@ -299,7 +345,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
                 .eq(ApiInfo::getId, id)
                 .update(apiInfo);
 
-        // 5. 重新保存请求头配置（先删后增）
+        // 6. 重新保存请求头配置（先删后增）
         apiHeaderMapper.delete(new LambdaQueryWrapper<ApiHeader>().eq(ApiHeader::getApiId, id));
         if (request.getHeaders() != null && !request.getHeaders().isEmpty()) {
             List<ApiHeader> headerList = request.getHeaders().stream()
@@ -316,7 +362,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             headerList.forEach(apiHeaderMapper::insert);
         }
 
-        // 6. 重新保存请求参数配置（先删后增）
+        // 7. 重新保存请求参数配置（先删后增）
         apiParamMapper.delete(new LambdaQueryWrapper<ApiParam>().eq(ApiParam::getApiId, id));
         if (request.getRequestParams() != null && !request.getRequestParams().isEmpty()) {
             List<ApiParam> paramList = request.getRequestParams().stream()
@@ -346,7 +392,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
     /**
      * 发布接口
      *
-     * 将 DRAFT(0) 状态的接口变更为 PUBLISHED(1)。
+     * 将未发布(0)或已停用(2)状态的接口发布为已发布(1)。
      *
      * @param id 接口ID
      */
@@ -361,9 +407,9 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             throw new BusinessException(StatusCode.NOT_FOUND, "接口不存在");
         }
 
-        // 2. 校验状态（仅草稿状态可发布）
-        if (apiInfo.getStatus() != 0) {
-            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "仅未发布状态的接口可发布");
+        // 2. 校验状态（仅未发布或已停用状态可发布）
+        if (apiInfo.getStatus() != 0 && apiInfo.getStatus() != 2) {
+            throw new BusinessException(StatusCode.RESOURCE_STATUS_NOT_ALLOWED, "仅未发布或已停用状态的接口可发布");
         }
 
         // 3. 更新状态
@@ -443,7 +489,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
     /**
      * 批量发布接口
      *
-     * 校验规则：所选接口不能包含已发布(1)或已停用(2)状态的接口
+     * 校验规则：所选接口不能包含已发布(1)状态的接口，可包含未发布(0)和已停用(2)状态。
      *
      * @param request 批量操作请求
      */
@@ -462,10 +508,10 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             throw new BusinessException(StatusCode.NOT_FOUND, "部分接口不存在");
         }
 
-        // 3. 校验是否包含已发布或已停用接口
-        boolean hasInvalid = apiList.stream().anyMatch(api -> api.getStatus() != 0);
+        // 3. 校验是否包含已发布接口（未发布和已停用均可发布）
+        boolean hasInvalid = apiList.stream().anyMatch(api -> api.getStatus() == 1);
         if (hasInvalid) {
-            throw new BusinessException(StatusCode.BATCH_OPERATION_FAILED, "所选接口中包含已发布或已停用状态的接口，操作不合法");
+            throw new BusinessException(StatusCode.BATCH_OPERATION_FAILED, "所选接口中包含已发布状态的接口，操作不合法");
         }
 
         // 4. 批量更新为已发布
@@ -517,7 +563,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
     /**
      * 批量修改接口分类
      *
-     * 校验规则：所选接口不能包含已发布(1)状态的接口
+     * 校验规则：所选接口不能包含已发布(1)状态的接口，可包含未发布(0)和已停用(2)状态。
      *
      * @param request 批量分类请求
      */
@@ -543,7 +589,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
             throw new BusinessException(StatusCode.NOT_FOUND, "部分接口不存在");
         }
 
-        // 4. 校验是否包含已发布接口
+        // 4. 校验是否包含已发布接口（未发布和已停用均可分类）
         boolean hasPublished = apiList.stream().anyMatch(api -> api.getStatus() == 1);
         if (hasPublished) {
             throw new BusinessException(StatusCode.BATCH_OPERATION_FAILED, "所选接口中包含已发布状态的接口，操作不合法");
@@ -745,5 +791,38 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
         vo.setMinValue(param.getMinValue());
         vo.setMaxValue(param.getMaxValue());
         return vo;
+    }
+
+    /**
+     * 递归获取指定分类及其所有后代分类的 ID 列表
+     *
+     * 全量加载分类数据后，在内存中按 parentId 分组，再通过广度优先遍历
+     * 获取所有后代分类的 ID，用于查询该分类及其所有后代分类下的接口。
+     *
+     * @param categoryId 父分类ID
+     * @return 包含自身及所有后代分类的 ID 列表
+     */
+    private List<Long> getDescendantCategoryIds(Long categoryId) {
+        List<Long> result = new ArrayList<>();
+        result.add(categoryId);
+
+        // 全量加载分类（@TableLogic 自动过滤已删除）
+        List<ApiCategory> allCategories = apiCategoryMapper.selectList(null);
+        // 按 parentId 分组
+        Map<Long, List<ApiCategory>> childrenMap = allCategories.stream()
+                .collect(Collectors.groupingBy(ApiCategory::getParentId));
+
+        // 广度优先遍历查找所有后代
+        List<Long> queue = new ArrayList<>(result);
+        while (!queue.isEmpty()) {
+            Long current = queue.remove(0);
+            List<ApiCategory> children = childrenMap.getOrDefault(current, new ArrayList<>());
+            for (ApiCategory child : children) {
+                result.add(child.getId());
+                queue.add(child.getId());
+            }
+        }
+
+        return result;
     }
 }

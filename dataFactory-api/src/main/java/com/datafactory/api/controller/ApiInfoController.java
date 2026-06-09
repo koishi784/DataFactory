@@ -53,7 +53,7 @@ public class ApiInfoController {
      * @param sortOrder  更新时间排序：asc（升序）/ desc（降序），默认 desc
      * @return 分页结果
      */
-    @Operation(summary = "查询接口列表", description = "分页查询接口列表，支持多条件筛选。排序规则参照全局规范 1.2")
+    @Operation(summary = "查询接口列表", description = "分页查询接口列表，支持多条件筛选。排序规则：优先级一按状态（DRAFT→PUBLISHED→DISABLED），优先级二按更新时间，优先级三按接口分类顺序，优先级四按接口名称")
     @GetMapping
     public Result<Page<ApiInfoVo>> getApiList(
             @RequestParam(required = false, defaultValue = "1") Integer pageNum,
@@ -101,7 +101,7 @@ public class ApiInfoController {
      * @param request 编辑接口请求参数
      * @return 统一响应
      */
-    @Operation(summary = "编辑接口", description = "修改处于 DRAFT 状态的接口信息，已发布或已停用接口不可编辑")
+    @Operation(summary = "编辑接口", description = "仅未发布(0)和已停用(2)状态可编辑。已停用状态下不可编辑 url（Path）字段。已发布状态不可编辑")
     @PutMapping("/{id}")
     public Result<Void> updateApi(@PathVariable Long id, @Valid @RequestBody ApiUpdateRequest request) {
         apiInfoService.updateApi(id, request);
@@ -114,7 +114,7 @@ public class ApiInfoController {
      * @param id 接口ID
      * @return 统一响应
      */
-    @Operation(summary = "发布接口", description = "将 DRAFT 状态的接口发布上线，状态变更为 PUBLISHED")
+    @Operation(summary = "发布接口", description = "将未发布(0)或已停用(2)状态的接口发布为已发布(1)")
     @PutMapping("/{id}/publish")
     public Result<Void> publishApi(@PathVariable Long id) {
         apiInfoService.publishApi(id);
@@ -153,7 +153,7 @@ public class ApiInfoController {
      * @param request 批量发布请求参数
      * @return 统一响应
      */
-    @Operation(summary = "批量发布接口", description = "批量发布选中的接口。校验规则：所选接口不能包含已发布状态")
+    @Operation(summary = "批量发布接口", description = "批量发布选中的接口。所选接口须全部为未发布(0)或已停用(2)状态，不能包含已发布(1)状态")
     @PutMapping("/batch/publish")
     public Result<Void> batchPublish(@Valid @RequestBody BatchIdsRequest request) {
         apiInfoService.batchPublish(request);
@@ -179,7 +179,7 @@ public class ApiInfoController {
      * @param request 批量分类请求参数
      * @return 统一响应
      */
-    @Operation(summary = "批量修改接口分类", description = "批量修改选中的接口所属分类。校验规则：所选接口不能包含已发布状态")
+    @Operation(summary = "批量修改接口分类", description = "批量修改接口分类。所选接口须全部为未发布(0)或已停用(2)状态，不能包含已发布(1)状态")
     @PutMapping("/batch/category")
     public Result<Void> batchCategory(@Valid @RequestBody BatchCategoryRequest request) {
         apiInfoService.batchCategory(request);

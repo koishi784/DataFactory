@@ -7,19 +7,28 @@ import lombok.EqualsAndHashCode;
 /**
  * 数据资产实体类
  */
-
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("asset")
 public class Asset extends BaseEntity {
 
+    /**
+     * 中文名称（全局唯一，仅支持中英文）
+     */
     private String assetName;
-    private String assetCode;
-    private Long parentId;
-    private String type;
-    private String sourceType;
-    private Long sourceId;
-    private String sourceTable;
+
+    /**
+     * 英文名称（全局唯一，仅支持英文大小写、数字及下划线，英文开头）
+     */
+    private String englishName;
+
+    /**
+     * 数据资产表描述
+     */
     private String description;
+
+    /**
+     * 状态：0=未发布，1=已发布，2=已停用
+     */
     private Integer status;
 }
