@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.datafactory.common.enums.StatusCode;
 import com.datafactory.common.exception.BusinessException;
+import com.datafactory.common.utils.StatusUtils;
 import com.datafactory.common.model.dto.api.ApiCreateRequest;
 import com.datafactory.common.model.dto.api.ApiTestRequest;
 import com.datafactory.common.model.dto.api.ApiUpdateRequest;
@@ -95,7 +96,7 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
 
         // 状态筛选（多值逗号分隔）
         if (status != null && !status.isBlank()) {
-            List<Integer> statusList = parseStatusList(status);
+            List<Integer> statusList = StatusUtils.parseStatusList(status);
             if (!statusList.isEmpty()) {
                 queryWrapper.in(ApiInfo::getStatus, statusList);
             }
@@ -637,21 +638,6 @@ public class IApiInfoServiceImpl extends ServiceImpl<ApiInfoMapper, ApiInfo> imp
     }
 
     // ==================== 私有工具方法 ====================
-
-    /**
-     * 解析状态筛选参数
-     */
-    private List<Integer> parseStatusList(String status) {
-        List<Integer> statusList = new ArrayList<>();
-        for (String s : status.split(",")) {
-            try {
-                statusList.add(Integer.parseInt(s.trim()));
-            } catch (NumberFormatException e) {
-                // 忽略无效状态值
-            }
-        }
-        return statusList;
-    }
 
     /**
      * 加载全部分类并构建 id → entity 映射
