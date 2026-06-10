@@ -1,0 +1,32 @@
+{
+  "name": "datafactory-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.17.0",
+    "dayjs": "^1.11.21",
+    "element-plus": "^2.14.1",
+    "lodash": "^4.18.1",
+    "lodash-es": "^4.18.1",
+    "pinia": "^3.0.4",
+    "sass": "^1.100.0",
+    "vue": "^3.5.34",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^24.12.3",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "~6.0.2",
+    "vite": "^6.0.0",
+    "vue-tsc": "^3.3.4"
+  }
+}
