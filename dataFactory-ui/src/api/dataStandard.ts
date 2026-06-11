@@ -2,7 +2,7 @@ import request from './request'
 import type { PageParams, PageResult } from '@/types'
 import type { DataStandard } from '@/types/dataStandard'
 
-export function getDataStandardList(params: PageParams & { standardName?: string; standardCode?: string; status?: number }) {
+export function getDataStandardList(params: PageParams & { keyword?: string; status?: number; dataType?: string }) {
   return request.get<PageResult<DataStandard>>('/data-standards', { params })
 }
 

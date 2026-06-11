@@ -1,13 +1,21 @@
 import type { BaseEntity } from './index'
 
 export interface DataStandard extends BaseEntity {
-  standardName: string
+  name: string
+  englishName: string
   standardCode: string
-  standardType: string
   dataType: string
   length?: number
   precision?: number
+  sourceOrganization: string
+  nullable: number
+  defaultValue?: string
+  rangeMin?: string
+  rangeMax?: string
+  enumRange?: string
   validationRule?: string
   description?: string
   status: number
+  createTime: string
+  updateTime: string
 }

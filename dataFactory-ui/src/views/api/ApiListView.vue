@@ -46,7 +46,7 @@ const router = useRouter()
 const selectedIds = ref<number[]>([])
 
 const searchFields = [
-  { prop: 'apiName', label: '接口名称' },
+  { prop: 'keyword', label: '接口名称' },
   { prop: 'method', label: '请求方法', type: 'select' as const, options: [{ label: 'GET', value: 'GET' }, { label: 'POST', value: 'POST' }, { label: 'PUT', value: 'PUT' }, { label: 'DELETE', value: 'DELETE' }] },
 ]
 

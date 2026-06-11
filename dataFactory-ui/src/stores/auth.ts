@@ -35,21 +35,27 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchUserInfo()
   }
 
-  async function fetchUserInfo() {
+  async function fetchUserInfo(): Promise<boolean> {
     try {
       userInfo.value = await getCurrentUser() as CurrentUserInfo
+      return true
     } catch {
-      // ignore
+      userInfo.value = null
+      return false
     }
   }
 
   async function refreshTokenAction() {
+    const currentRefreshToken = refreshTokenStr.value
+    if (!currentRefreshToken) {
+      throw new Error('No refresh token available')
+    }
     try {
-      const result = await refreshTokenApi(refreshTokenStr.value) as any
+      const result = await refreshTokenApi(currentRefreshToken) as any
       setToken(result.accessToken, result.refreshToken)
       return result.accessToken
     } catch {
-      logout()
+      // 不要在这里调用 logout() — 让 axios 拦截器统一处理
       throw new Error('Token refresh failed')
     }
   }

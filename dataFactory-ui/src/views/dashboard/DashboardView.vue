@@ -1,5 +1,5 @@
 <template>
-  <PageContainer title="工作台">
+  <PageContainer>
     <el-row :gutter="16">
       <el-col :span="6" v-for="stat in stats" :key="stat.label">
         <el-card shadow="hover" class="stat-card">

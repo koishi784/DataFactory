@@ -121,7 +121,10 @@ function handleLogin() {
 }
 
 .form-footer {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
   margin-top: 24px;
   font-size: 14px;
   color: #909399;

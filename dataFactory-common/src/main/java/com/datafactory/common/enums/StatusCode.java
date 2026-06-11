@@ -44,8 +44,8 @@ public enum StatusCode {
     PERMISSION_DENIED(100606, "无操作权限"),
     PASSWORD_INCORRECT(100607, "原密码错误"),
 
-    // ========== 刷新令牌 (1006XX) ==========
-    REFRESH_TOKEN_INVALID(100415, "刷新令牌无效或已过期，请重新登录"),
+    // ========== 刷新令牌 ==========
+    REFRESH_TOKEN_INVALID(100608, "刷新令牌无效或已过期，请重新登录"),
 
     // ========== 密码相关 ==========
     PASSWORD_SAME_AS_OLD(100414, "新密码不能与原密码相同"),

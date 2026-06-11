@@ -5,10 +5,7 @@
         <Fold v-if="!appStore.sidebarCollapsed" />
         <Expand v-else />
       </el-icon>
-      <el-breadcrumb>
-        <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
-        <el-breadcrumb-item v-if="route.meta?.title">{{ route.meta.title }}</el-breadcrumb-item>
-      </el-breadcrumb>
+      <span class="page-title">{{ route.meta?.title || '首页' }}</span>
     </div>
 
     <div class="right">
@@ -58,6 +55,8 @@ function handleCommand(command: string) {
 
 <style scoped lang="scss">
 .navbar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -74,6 +73,12 @@ function handleCommand(command: string) {
     .collapse-btn {
       cursor: pointer;
       color: #606266;
+    }
+
+    .page-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
     }
   }
 

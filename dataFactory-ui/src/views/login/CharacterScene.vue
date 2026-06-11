@@ -10,7 +10,7 @@
       v-for="(ch, idx) in characters"
       :key="idx"
       class="character"
-      :class="[`char-${idx + 1}`, { shaking: isShaking }]"
+      :class="[`char-${idx + 1}`, { shaking: isShaking, 'eyes-closed': props.isPasswordFocused }]"
       :style="{ left: ch.x + '%', bottom: ch.y + '%', transform: `skewX(${bodyTilts[idx] + errorTilt + emptyTilt}deg)` }"
       @click.stop="tiltCharacter(idx)"
     >
@@ -83,6 +83,7 @@ function setEyeGroupRef(idx: number, el: any) {
 }
 
 function onMouseMove(e: MouseEvent) {
+  if (props.isPasswordFocused) return
   mouseX.value = e.clientX
   mouseY.value = e.clientY
   updateHeads()
@@ -111,13 +112,9 @@ function updatePupils() {
       const cx = rect.left + rect.width / 2
       const cy = rect.top + rect.height / 2
 
-      // 密码聚焦时瞳孔转向下方（"害羞/低头"）
+      // 计算瞳孔偏移量：从瞳孔中心指向鼠标位置
       let targetX = mouseX.value
       let targetY = mouseY.value
-      if (props.isPasswordFocused) {
-        targetX = cx
-        targetY = cy + 200
-      }
 
       const dx = targetX - cx
       const dy = targetY - cy
@@ -207,6 +204,19 @@ watch(() => props.isLoginError, (val) => {
     updateBodyTilt()
     errorTimeout = null
   }, 550)
+})
+
+// 密码聚焦时：角色不倾斜、头部回正
+watch(() => props.isPasswordFocused, (val) => {
+  if (val) {
+    for (let i = 0; i < 4; i++) {
+      bodyTilts[i] = 0
+      headOffsets[i] = 0
+      if (eyeGroupRefs[i]) {
+        eyeGroupRefs[i]!.style.transform = 'translateX(0px)'
+      }
+    }
+  }
 })
 
 onMounted(() => {
@@ -431,5 +441,26 @@ onBeforeUnmount(() => {
   background: #1a1a2e;
   border-radius: 50%;
   transition: transform 0.08s linear;
+}
+
+// 闭眼：隐藏瞳孔 + 显示眼睑线
+.character.eyes-closed {
+  .pupil {
+    display: none;
+  }
+  .eye {
+    position: relative;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #1a1a2e;
+      transform: translateY(-50%);
+      border-radius: 1px;
+    }
+  }
 }
 </style>
