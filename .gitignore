@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### 接口文档 ###
+API接口文档.md
+前端登录页面(动态)实现步骤.md
+
+### Agent规则 ###
+.trae
