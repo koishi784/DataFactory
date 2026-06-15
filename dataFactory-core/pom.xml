@@ -64,6 +64,22 @@
             <version>2.5.0</version>
         </dependency>
 
+        <!-- EasyExcel -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
+
+        <!-- Groovy -->
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy-jsr223</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -85,6 +101,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <skip>true</skip>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

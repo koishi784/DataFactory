@@ -2,7 +2,7 @@ import request from './request'
 import type { PageParams, PageResult } from '@/types'
 import type { DatabaseConnection } from '@/types/database'
 
-export function getDatabaseList(params: PageParams & { connectionName?: string; dbType?: string; status?: number }) {
+export function getDatabaseList(params: PageParams & { keyword?: string; dbType?: string; status?: number }) {
   return request.get<PageResult<DatabaseConnection>>('/databases', { params })
 }
 

@@ -1,10 +1,18 @@
 <template>
   <PageContainer title="数据标准目录">
-    <template #actions>
-      <el-button type="primary" @click="router.push('/standard/create')">新增数据标准</el-button>
-    </template>
     <SearchForm :model="searchForm" :fields="searchFields" @search="handleSearch" @reset="handleReset" />
-    <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" />
+    <div class="toolbar">
+      <BatchActions :has-selection="selectedIds.length > 0" :show-category="false" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable">
+        <template #extra>
+          <el-button type="primary" @click="router.push('/standard/create')">新增数据标准</el-button>
+        </template>
+        <template #append>
+          <el-button type="primary" @click="handleDownloadTemplate">下载模板</el-button>
+          <el-button type="primary" @click="triggerImport">导入模板</el-button>
+        </template>
+      </BatchActions>
+      <input ref="fileInputRef" type="file" accept=".xlsx" style="display:none" @change="handleFileChange" />
+    </div>
     <DataTable
       :data="list" :loading="loading" :total="total"
       :current-page="pagination.pageNum" :page-size="pagination.pageSize"
@@ -43,6 +51,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageContainer from '@/components/PageContainer.vue'
 import SearchForm from '@/components/SearchForm.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -51,7 +60,7 @@ import StatusAction from '@/components/StatusAction.vue'
 import BatchActions from '@/components/BatchActions.vue'
 import { useCrud } from '@/composables/useCrud'
 import { useStatusActions } from '@/composables/useStatusActions'
-import { getDataStandardList, publishDataStandard, disableDataStandard, deleteDataStandard, batchPublishDataStandard, batchDisableDataStandard } from '@/api/dataStandard'
+import { getDataStandardList, publishDataStandard, disableDataStandard, deleteDataStandard, batchPublishDataStandard, batchDisableDataStandard, downloadTemplate, importDataStandard } from '@/api/dataStandard'
 import type { DataStandard } from '@/types/dataStandard'
 
 const router = useRouter()
@@ -63,6 +72,12 @@ const searchFields = [
     { label: '未发布', value: 0 },
     { label: '已发布', value: 1 },
     { label: '已停用', value: 2 },
+  ]},
+  { prop: 'dataType', label: '数据类型', type: 'select', options: [
+    { label: '字符串(String)', value: 'String' },
+    { label: '整型(Int)', value: 'Int' },
+    { label: '浮点型(Float)', value: 'Float' },
+    { label: '枚举(Enum)', value: 'Enum' },
   ]},
 ]
 
@@ -77,5 +92,53 @@ function handleSelectionChange(selection: any[]) {
   selectedIds.value = selection.map((s: any) => s.id)
 }
 
+// 导入 / 下载模板
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+function triggerImport() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  try {
+    const res = await importDataStandard(file) as any
+    const { totalCount, successCount, failCount, failDetails } = res
+    ElMessage.success(`导入完成：共 ${totalCount} 条，成功 ${successCount} 条，失败 ${failCount} 条`)
+    if (failDetails?.length > 0) {
+      ElMessageBox.alert(
+        failDetails.map((d: any) => `第 ${d.rowIndex} 行：${d.reason}`).join('\n'),
+        '导入失败详情',
+        { type: 'warning', confirmButtonText: '确定' }
+      )
+    }
+    fetchData()
+  } catch { /* handled */ }
+  target.value = ''
+}
+
+async function handleDownloadTemplate() {
+  try {
+    const blob = await downloadTemplate() as Blob
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '数据标准导入模板.xlsx'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } catch { /* handled */ }
+}
+
 fetchData()
 </script>
+
+<style scoped lang="scss">
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+</style>

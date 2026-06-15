@@ -5,7 +5,12 @@ import com.datafactory.common.model.dto.api.BatchIdsRequest;
 import com.datafactory.common.model.dto.datastandard.DataStandardCreateRequest;
 import com.datafactory.common.model.dto.datastandard.DataStandardUpdateRequest;
 import com.datafactory.common.model.vo.datastandard.DataStandardDetailVo;
+import com.datafactory.common.model.vo.datastandard.DataStandardImportResultVo;
 import com.datafactory.common.model.vo.datastandard.DataStandardListVo;
+import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * 数据标准服务接口
@@ -95,4 +100,25 @@ public interface IDataStandardService {
      * @param request 批量操作请求
      */
     void batchDisable(BatchIdsRequest request);
+
+    /**
+     * 下载导入模板
+     *
+     * 生成包含表头行的 Excel 模板文件，供用户填写数据标准信息后批量导入。
+     *
+     * @param response HTTP 响应，用于输出文件流
+     * @throws IOException 文件写入异常
+     */
+    void downloadTemplate(HttpServletResponse response) throws IOException;
+
+    /**
+     * 批量导入数据标准
+     *
+     * 通过上传 Excel 文件批量导入数据标准，按照六步校验规则进行校验和过滤。
+     *
+     * @param file 上传的 Excel 文件
+     * @return 导入结果（包含统计信息和失败详情）
+     * @throws IOException 文件读取异常
+     */
+    DataStandardImportResultVo importStandards(MultipartFile file) throws IOException;
 }

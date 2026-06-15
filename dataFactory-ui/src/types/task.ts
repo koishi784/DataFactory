@@ -2,11 +2,15 @@ import type { BaseEntity } from './index'
 
 export interface Task extends BaseEntity {
   taskName: string
+  taskDescription?: string
   description?: string
   categoryId?: number
   status: number
   scheduleType?: string
   cronExpression?: string
+  executeStatus?: number
+  lastExecuteTime?: string
+  nextExecuteTime?: string
 }
 
 export interface TaskNode {

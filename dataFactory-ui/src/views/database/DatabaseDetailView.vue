@@ -8,8 +8,21 @@
       <el-descriptions-item label="数据库名称">{{ detail.databaseName }}</el-descriptions-item>
       <el-descriptions-item label="用户名">{{ detail.username }}</el-descriptions-item>
       <el-descriptions-item label="状态"><StatusTag :status="detail.status" /></el-descriptions-item>
+      <el-descriptions-item label="最近测试时间">{{ detail.lastTestTime || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="最近测试结果">
+        <template v-if="detail.lastTestResult !== undefined">
+          <el-tag :type="detail.lastTestResult === 1 ? 'success' : 'danger'" size="small">
+            {{ detail.lastTestResult === 1 ? '成功' : '失败' }}
+          </el-tag>
+        </template>
+        <span v-else>-</span>
+      </el-descriptions-item>
+      <el-descriptions-item label="JDBC 参数" :span="2">
+        <code>{{ detail.jdbcParams || '-' }}</code>
+      </el-descriptions-item>
       <el-descriptions-item label="创建时间">{{ detail.createTime }}</el-descriptions-item>
-      <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="更新时间">{{ detail.updateTime }}</el-descriptions-item>
+      <el-descriptions-item label="描述" :span="2">{{ detail.description || '-' }}</el-descriptions-item>
     </el-descriptions>
     <el-button style="margin-top: 16px" @click="router.back()">返回</el-button>
   </PageContainer>

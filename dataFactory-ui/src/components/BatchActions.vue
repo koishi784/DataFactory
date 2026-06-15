@@ -1,5 +1,6 @@
 <template>
   <div class="batch-actions" v-if="show">
+    <slot name="extra" />
     <el-button
       type="success"
       :disabled="!hasSelection"
@@ -14,19 +15,32 @@
     >
       批量停用
     </el-button>
-    <slot name="extra" />
+    <el-button
+      v-if="showCategory"
+      type="primary"
+      :disabled="!hasSelection"
+      @click="$emit('batch-category')"
+    >
+      批量分类
+    </el-button>
+    <slot name="append" />
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = withDefaults(defineProps<{
   hasSelection: boolean
   show?: boolean
-}>()
+  showCategory?: boolean
+}>(), {
+  show: true,
+  showCategory: true,
+})
 
 defineEmits<{
   'batch-publish': []
   'batch-disable': []
+  'batch-category': []
 }>()
 </script>
 

@@ -1,5 +1,9 @@
 package com.datafactory.core.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.read.listener.ReadListener;
+import com.alibaba.excel.write.builder.ExcelWriterBuilder;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -9,25 +13,38 @@ import com.datafactory.common.model.dto.api.BatchIdsRequest;
 import com.datafactory.common.model.dto.datastandard.DataStandardCreateRequest;
 import com.datafactory.common.model.dto.datastandard.DataStandardUpdateRequest;
 import com.datafactory.common.model.vo.datastandard.DataStandardDetailVo;
+import com.datafactory.common.model.vo.datastandard.DataStandardImportResultVo;
 import com.datafactory.common.model.vo.datastandard.DataStandardListVo;
 import com.datafactory.common.utils.StatusUtils;
 import com.datafactory.core.domain.entity.CodeTable;
 import com.datafactory.core.domain.entity.DataStandard;
 import com.datafactory.core.domain.mapper.DataStandardMapper;
+import com.datafactory.core.model.DataStandardImportRow;
 import com.datafactory.core.service.ICodeTableService;
 import com.datafactory.core.service.IDataStandardService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * 数据标准服务实现类
  *
- * 实现数据标准的 CRUD、状态管理、批量操作、数据类型校验等完整业务逻辑。
+ * 实现数据标准的 CRUD、状态管理、批量操作、模板下载、Excel 导入及数据类型校验等完整业务逻辑。
  * 标准编号由系统自动生成（格式 BZ + 5 位数字），基于保存后的 ID 生成。
  */
 @Slf4j
@@ -36,6 +53,45 @@ import java.util.stream.Collectors;
 public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, DataStandard> implements IDataStandardService {
 
     private final ICodeTableService codeTableService;
+
+    /** 导入记录条数上限 */
+    private static final int IMPORT_MAX_RECORDS = 10000;
+
+    /** 模板表头列 */
+    private static final List<List<String>> TEMPLATE_HEADERS = List.of(
+            List.of("中文名称", "英文名称", "数据类型", "数据长度", "数据精度", "默认值",
+                    "取值范围最小值", "取值范围最大值", "引用码表编号", "来源机构",
+                    "是否可为空", "标准说明")
+    );
+
+    /**
+     * 导入标准 Excel 读取监听器
+     *
+     * 逐行读取 Excel 数据并存储到行列表中，同时记录每个数据的行号。
+     */
+    private static class ImportReadListener implements ReadListener<DataStandardImportRow> {
+
+        private final List<DataStandardImportRow> rows = new ArrayList<>();
+        private int currentRow = 1; // 表头为第 1 行，数据从第 2 行开始
+
+        @Override
+        public void invoke(DataStandardImportRow row, AnalysisContext context) {
+            currentRow++;
+            row.setRowIndex(currentRow);
+            rows.add(row);
+        }
+
+        @Override
+        public void doAfterAllAnalysed(AnalysisContext context) {
+            log.info("Excel 导入解析完成，共读取 {} 条数据", rows.size());
+        }
+
+        public List<DataStandardImportRow> getRows() {
+            return rows;
+        }
+    }
+
+    // ==================== 列表/详情/CRUD/状态管理 ====================
 
     /**
      * 分页查询数据标准列表
@@ -138,7 +194,7 @@ public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, Da
         validateDataTypeFields(request.getDataType(), request.getLength(), request.getPrecision(),
                 request.getRangeMin(), request.getRangeMax(), request.getEnumRange(), true);
 
-        // 2. 枚举范围校验（预留注入点）
+        // 2. 枚举范围校验（通过码表服务校验）
         validateEnumRange(request.getEnumRange());
 
         // 3. 创建实体并保存
@@ -197,7 +253,7 @@ public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, Da
         validateDataTypeFields(request.getDataType(), request.getLength(), request.getPrecision(),
                 request.getRangeMin(), request.getRangeMax(), request.getEnumRange(), true);
 
-        // 4. 枚举范围校验（预留注入点）
+        // 4. 枚举范围校验（通过码表服务校验）
         validateEnumRange(request.getEnumRange());
 
         // 5. 更新字段（standardCode 不可修改）
@@ -373,6 +429,396 @@ public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, Da
         log.info("批量停用数据标准成功：ids={}", ids);
     }
 
+    // ==================== 模板下载 ====================
+
+    /**
+     * 下载导入模板
+     *
+     * 使用 EasyExcel 生成包含表头行的 Excel 文件（.xlsx），无示例数据行。
+     * 设置响应头为文件下载格式。
+     *
+     * @param response HTTP 响应
+     */
+    @Override
+    public void downloadTemplate(HttpServletResponse response) throws IOException {
+        // 1. 设置响应头（文件下载）
+        String fileName = URLEncoder.encode("数据标准导入模板", StandardCharsets.UTF_8)
+                .replaceAll("\\+", "%20");
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        response.setHeader("Content-disposition",
+                "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        // 2. 使用 EasyExcel 写入模板
+        try (var outputStream = response.getOutputStream()) {
+            EasyExcel.write(outputStream)
+                    .head(TEMPLATE_HEADERS)
+                    .sheet("数据标准导入模板")
+                    .doWrite(List.of()); // 无数据行，仅表头
+        }
+        log.info("数据标准导入模板下载成功");
+    }
+
+    // ==================== 标准导入 ====================
+
+    /**
+     * 批量导入数据标准
+     *
+     * 通过上传的 Excel 文件批量导入数据标准，按六步规则进行校验和过滤：
+     * 1. 必填项校验 → 2. 文件内去重 → 3. 字段合法性校验 → 4. 数据类型互斥校验
+     * → 5. 系统内去重 → 6. 引用码表校验
+     *
+     * @param file 上传的 Excel 文件
+     * @return 导入结果
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public DataStandardImportResultVo importStandards(MultipartFile file) throws IOException {
+        DataStandardImportResultVo result = new DataStandardImportResultVo();
+
+        // 0. 读取 Excel 文件
+        ImportReadListener listener = new ImportReadListener();
+        try (InputStream inputStream = file.getInputStream()) {
+            EasyExcel.read(inputStream, DataStandardImportRow.class, listener)
+                    .sheet()
+                    .doRead();
+        }
+        List<DataStandardImportRow> rows = listener.getRows();
+
+        // 校验总条数限制（最多 10000 条）
+        if (rows.size() > IMPORT_MAX_RECORDS) {
+            throw new BusinessException(StatusCode.VALIDATION_FAILED,
+                    "导入数据条数不能超过 " + IMPORT_MAX_RECORDS + " 条，当前文件共 " + rows.size() + " 条");
+        }
+
+        result.setTotalCount(rows.size());
+
+        // 步骤一：必填项校验（过滤空行）
+        List<DataStandardImportRow> step1Result = step1ValidateRequiredFields(rows, result);
+
+        // 步骤二：文件内去重
+        List<DataStandardImportRow> step2Result = step2DeduplicateWithinFile(step1Result, result);
+
+        // 步骤三：字段合法性校验
+        List<DataStandardImportRow> step3Result = step3ValidateFieldFormat(step2Result, result);
+
+        // 步骤四：数据类型字段互斥校验
+        List<DataStandardImportRow> step4Result = step4ValidateDataTypeMutualExclusion(step3Result, result);
+
+        // 步骤五：与系统中已有的标准去重
+        List<DataStandardImportRow> step5Result = step5DeduplicateWithSystem(step4Result, result);
+
+        // 步骤六：引用码表校验
+        List<DataStandardImportRow> step6Result = step6ValidateEnumRange(step5Result, result);
+
+        // 批量写入数据库
+        if (!step6Result.isEmpty()) {
+            batchInsertImportRows(step6Result);
+            result.setSuccessCount(step6Result.size());
+        }
+
+        result.setFailCount(result.getTotalCount() - result.getSuccessCount());
+        log.info("数据标准导入完成：总={}，成功={}，失败={}", result.getTotalCount(), result.getSuccessCount(), result.getFailCount());
+        return result;
+    }
+
+    // ==================== 导入各校验步骤 ====================
+
+    /**
+     * 步骤一：必填项校验
+     *
+     * 过滤掉中文名称、英文名称、来源机构、数据类型中任意字段为空或全空格的数据行。
+     */
+    private List<DataStandardImportRow> step1ValidateRequiredFields(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        List<DataStandardImportRow> passed = new ArrayList<>();
+        for (DataStandardImportRow row : rows) {
+            List<String> missing = new ArrayList<>();
+            if (isBlank(row.getName())) missing.add("中文名称");
+            if (isBlank(row.getEnglishName())) missing.add("英文名称");
+            if (isBlank(row.getSourceOrganization())) missing.add("来源机构");
+            if (isBlank(row.getDataType())) missing.add("数据类型");
+
+            if (!missing.isEmpty()) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), missing + "为空"));
+            } else {
+                // 去除空格
+                row.setName(row.getName().trim());
+                row.setEnglishName(row.getEnglishName().trim());
+                row.setSourceOrganization(row.getSourceOrganization().trim());
+                row.setDataType(row.getDataType().trim());
+                passed.add(row);
+            }
+        }
+        return passed;
+    }
+
+    /**
+     * 步骤二：文件内去重
+     *
+     * 若中文名称或英文名称重复，只保留重复项中最上方的一条。
+     */
+    private List<DataStandardImportRow> step2DeduplicateWithinFile(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        List<DataStandardImportRow> passed = new ArrayList<>();
+        Set<String> seenNames = new HashSet<>();
+        Set<String> seenEnglishNames = new HashSet<>();
+
+        for (DataStandardImportRow row : rows) {
+            String nameKey = row.getName().toLowerCase();
+            String engKey = row.getEnglishName().toLowerCase();
+            boolean nameDup = seenNames.contains(nameKey);
+            boolean engDup = seenEnglishNames.contains(engKey);
+
+            if (nameDup) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), "中文名称 '" + row.getName() + "' 在文件中重复"));
+            }
+            if (engDup) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), "英文名称 '" + row.getEnglishName() + "' 在文件中重复"));
+            }
+
+            if (!nameDup && !engDup) {
+                seenNames.add(nameKey);
+                seenEnglishNames.add(engKey);
+                passed.add(row);
+            }
+        }
+        return passed;
+    }
+
+    /**
+     * 步骤三：字段合法性校验
+     *
+     * 校验各字段的格式合法性：中文名称（仅中英文）、英文名称（字母数字下划线，英文开头）、
+     * 数据类型（仅四种）、数据长度（正整数）、数据精度（非负整数）、取值范围格式等。
+     */
+    private List<DataStandardImportRow> step3ValidateFieldFormat(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        List<DataStandardImportRow> passed = new ArrayList<>();
+
+        for (DataStandardImportRow row : rows) {
+            List<String> errors = new ArrayList<>();
+
+            // 中文名称：仅支持中文及英文大小写
+            if (!row.getName().matches("^[\\u4e00-\\u9fa5a-zA-Z]+$")) {
+                errors.add("中文名称仅支持中文及英文大小写");
+            }
+
+            // 英文名称：仅支持英文大小写、数字及下划线，英文开头
+            if (!row.getEnglishName().matches("^[a-zA-Z][a-zA-Z0-9_]*$")) {
+                errors.add("英文名称仅支持英文大小写、数字及下划线，且以英文字母开头");
+            }
+
+            // 数据类型：仅支持四种
+            if (!List.of("String", "Int", "Float", "Enum").contains(row.getDataType())) {
+                errors.add("数据类型仅支持 String / Int / Float / Enum");
+            }
+
+            // 数据长度（有值时）：须为正整数
+            if (row.getLength() != null && row.getLength() <= 0) {
+                errors.add("数据长度须为正整数");
+            }
+
+            // 数据精度（有值时）：须为非负整数
+            if (row.getPrecision() != null && row.getPrecision() < 0) {
+                errors.add("数据精度须为非负整数");
+            }
+
+            // 取值范围（Int 类型）：只能填整数
+            if ("Int".equals(row.getDataType())) {
+                if (hasValue(row.getRangeMin()) && !row.getRangeMin().matches("^-?\\d+$")) {
+                    errors.add("Int 类型的取值范围最小值只能填整数");
+                }
+                if (hasValue(row.getRangeMax()) && !row.getRangeMax().matches("^-?\\d+$")) {
+                    errors.add("Int 类型的取值范围最大值只能填整数");
+                }
+            }
+
+            // 取值范围（Float 类型）：可填整数或实数
+            if ("Float".equals(row.getDataType())) {
+                if (hasValue(row.getRangeMin()) && !row.getRangeMin().matches("^-?\\d+(\\.\\d+)?$")) {
+                    errors.add("Float 类型的取值范围最小值须为整数或实数");
+                }
+                if (hasValue(row.getRangeMax()) && !row.getRangeMax().matches("^-?\\d+(\\.\\d+)?$")) {
+                    errors.add("Float 类型的取值范围最大值须为整数或实数");
+                }
+            }
+
+            if (!errors.isEmpty()) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), String.join("；", errors)));
+            } else {
+                passed.add(row);
+            }
+        }
+        return passed;
+    }
+
+    /**
+     * 步骤四：数据类型字段互斥校验
+     *
+     * 根据数据类型（String / Int / Float / Enum）校验字段互斥规则。
+     */
+    private List<DataStandardImportRow> step4ValidateDataTypeMutualExclusion(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        List<DataStandardImportRow> passed = new ArrayList<>();
+
+        for (DataStandardImportRow row : rows) {
+            List<String> errors = new ArrayList<>();
+
+            switch (row.getDataType()) {
+                case "String" -> {
+                    if (row.getPrecision() != null || hasValue(row.getRangeMin())
+                            || hasValue(row.getRangeMax()) || hasValue(row.getEnumRange())) {
+                        errors.add("String 类型不可设置精度、取值范围和枚举范围");
+                    }
+                }
+                case "Int" -> {
+                    if (row.getLength() != null || row.getPrecision() != null || hasValue(row.getEnumRange())) {
+                        errors.add("Int 类型不可设置长度、精度和枚举范围");
+                    }
+                }
+                case "Float" -> {
+                    if (row.getLength() != null || hasValue(row.getEnumRange())) {
+                        errors.add("Float 类型不可设置长度和枚举范围");
+                    }
+                }
+                case "Enum" -> {
+                    if (row.getLength() != null || row.getPrecision() != null
+                            || hasValue(row.getRangeMin()) || hasValue(row.getRangeMax())) {
+                        errors.add("Enum 类型不可设置长度、精度和取值范围");
+                    }
+                }
+            }
+
+            if (!errors.isEmpty()) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), String.join("；", errors)));
+            } else {
+                passed.add(row);
+            }
+        }
+        return passed;
+    }
+
+    /**
+     * 步骤五：与系统中已有的标准去重
+     *
+     * 若中文名称或英文名称与系统中的标准重复，则过滤掉该条标准。
+     */
+    private List<DataStandardImportRow> step5DeduplicateWithSystem(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        if (rows.isEmpty()) {
+            return rows;
+        }
+
+        // 收集需要查询的英文名称
+        List<String> engNames = rows.stream()
+                .map(DataStandardImportRow::getEnglishName)
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+        List<String> chnNames = rows.stream()
+                .map(DataStandardImportRow::getName)
+                .collect(Collectors.toList());
+
+        // 批量查询系统中已存在的标准（不区分大小写）
+        List<DataStandard> existing = lambdaQuery()
+                .and(w -> {
+                    w.in(DataStandard::getEnglishName, engNames);
+                    for (String name : chnNames) {
+                        w.or().eq(DataStandard::getName, name);
+                    }
+                })
+                .list();
+
+        Set<String> existingEngNames = existing.stream()
+                .map(DataStandard::getEnglishName)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        Set<String> existingChnNames = existing.stream()
+                .map(DataStandard::getName)
+                .collect(Collectors.toSet());
+
+        List<DataStandardImportRow> passed = new ArrayList<>();
+        for (DataStandardImportRow row : rows) {
+            if (existingChnNames.contains(row.getName())) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), "中文名称 '" + row.getName() + "' 与系统中已存在的标准重复"));
+            } else if (existingEngNames.contains(row.getEnglishName().toLowerCase())) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), "英文名称 '" + row.getEnglishName() + "' 与系统中已存在的标准重复"));
+            } else {
+                passed.add(row);
+            }
+        }
+        return passed;
+    }
+
+    /**
+     * 步骤六：引用码表校验
+     *
+     * 对于 Enum 类型，校验引用码表编号对应的码表存在且已发布。
+     */
+    private List<DataStandardImportRow> step6ValidateEnumRange(
+            List<DataStandardImportRow> rows, DataStandardImportResultVo result) {
+        List<DataStandardImportRow> passed = new ArrayList<>();
+
+        for (DataStandardImportRow row : rows) {
+            if (!"Enum".equals(row.getDataType()) || !hasValue(row.getEnumRange())) {
+                passed.add(row);
+                continue;
+            }
+
+            try {
+                validateEnumRange(row.getEnumRange());
+                passed.add(row);
+            } catch (BusinessException e) {
+                result.getFailDetails().add(new DataStandardImportResultVo.FailDetail(
+                        row.getRowIndex(), e.getMessage()));
+            }
+        }
+        return passed;
+    }
+
+    // ==================== 批量插入 ====================
+
+    /**
+     * 批量插入导入的数据标准
+     *
+     * 逐条保存（每条需生成标准编号），开启事务保证原子性。
+     *
+     * @param rows 经校验通过的导入行列表
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchInsertImportRows(List<DataStandardImportRow> rows) {
+        for (DataStandardImportRow row : rows) {
+            DataStandard standard = new DataStandard();
+            standard.setName(row.getName());
+            standard.setEnglishName(row.getEnglishName());
+            standard.setDataType(row.getDataType());
+            standard.setLength(row.getLength());
+            standard.setPrecision(row.getPrecision());
+            standard.setDefaultValue(row.getDefaultValue());
+            standard.setRangeMin(row.getRangeMin());
+            standard.setRangeMax(row.getRangeMax());
+            standard.setEnumRange(row.getEnumRange());
+            standard.setSourceOrganization(row.getSourceOrganization());
+            standard.setNullable(row.getNullable() != null ? row.getNullable() : 0);
+            standard.setDescription(row.getDescription());
+            standard.setStandardCode(""); // 占位，保存后立即更新
+            standard.setStatus(0); // DRAFT
+
+            save(standard);
+
+            // 生成标准编号
+            standard.setStandardCode(generateStandardCode(standard.getId()));
+            updateById(standard);
+        }
+    }
+
     // ==================== 私有工具方法 ====================
 
     /**
@@ -411,12 +857,12 @@ public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, Da
      *
      * 根据数据类型，校验各字段是否符合互斥规则。
      *
-     * @param dataType     数据类型：String / Int / Float / Enum
-     * @param length       数据长度
-     * @param precision    精度
-     * @param rangeMin     取值范围最小值
-     * @param rangeMax     取值范围最大值
-     * @param enumRange    枚举范围
+     * @param dataType      数据类型：String / Int / Float / Enum
+     * @param length        数据长度
+     * @param precision     精度
+     * @param rangeMin      取值范围最小值
+     * @param rangeMax      取值范围最大值
+     * @param enumRange     枚举范围
      * @param checkRequired 是否校验必填字段（新增时需要，编辑时不需要）
      */
     private void validateDataTypeFields(String dataType, Integer length, Integer precision,
@@ -481,6 +927,13 @@ public class IDataStandardServiceImpl extends ServiceImpl<DataStandardMapper, Da
      */
     private boolean hasValue(String str) {
         return str != null && !str.isBlank();
+    }
+
+    /**
+     * 判断字符串是否为空或全空格
+     */
+    private boolean isBlank(String str) {
+        return str == null || str.isBlank();
     }
 
     /**

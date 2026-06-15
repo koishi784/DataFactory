@@ -20,7 +20,7 @@ export function deleteAssetDirectory(id: number) {
 }
 
 // ===== 数据资产管理 =====
-export function getAssetList(params: PageParams & { assetName?: string; status?: number }) {
+export function getAssetList(params: PageParams & { keyword?: string; status?: number; directoryId?: number }) {
   return request.get<PageResult<Asset>>('/assets', { params })
 }
 

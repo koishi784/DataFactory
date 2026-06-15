@@ -6,12 +6,15 @@ import com.datafactory.common.model.dto.datastandard.DataStandardCreateRequest;
 import com.datafactory.common.model.dto.datastandard.DataStandardUpdateRequest;
 import com.datafactory.common.model.vo.datastandard.DataStandardDetailVo;
 import com.datafactory.common.model.vo.datastandard.DataStandardListVo;
+import com.datafactory.common.model.vo.datastandard.DataStandardImportResultVo;
 import com.datafactory.common.response.Result;
 import com.datafactory.core.service.IDataStandardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +24,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * 数据标准管理控制器
@@ -174,5 +180,49 @@ public class DataStandardController {
     public Result<Void> batchDisable(@Valid @RequestBody BatchIdsRequest request) {
         dataStandardService.batchDisable(request);
         return Result.success("批量停用成功", null);
+    }
+
+    /**
+     * 下载导入模板
+     *
+     * 生成包含表头行的 Excel 模板文件，供用户填写数据标准信息后批量导入。
+     *
+     * @param response HTTP 响应
+     * @throws IOException 文件写入异常
+     */
+    @Operation(summary = "下载导入模板", description = "下载数据标准批量导入的 Excel 模板文件，包含表头列")
+    @GetMapping("/template")
+    public void downloadTemplate(HttpServletResponse response) throws IOException {
+        dataStandardService.downloadTemplate(response);
+    }
+
+    /**
+     * 批量导入数据标准
+     *
+     * 通过上传 Excel 文件批量导入数据标准，按照六步校验规则进行校验和过滤。
+     *
+     * @param file 上传的 Excel 文件
+     * @return 导入结果
+     * @throws IOException 文件读取异常
+     */
+    @Operation(summary = "批量导入数据标准", description = "通过上传 Excel 文件批量导入数据标准，按六步规则校验过滤。仅支持 .xlsx 格式，最大 50MB")
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<DataStandardImportResultVo> importStandards(@RequestParam("file") MultipartFile file) throws IOException {
+        // 校验文件是否为空
+        if (file == null || file.isEmpty()) {
+            return Result.error(100400, "上传文件不能为空");
+        }
+        // 校验文件格式
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.toLowerCase().endsWith(".xlsx")) {
+            return Result.error(100406, "仅支持 .xlsx 格式的 Excel 文件");
+        }
+        // 校验文件大小（最大 50MB）
+        if (file.getSize() > 50 * 1024 * 1024) {
+            return Result.error(100418, "文件大小超出限制，最大 50MB");
+        }
+
+        DataStandardImportResultVo result = dataStandardService.importStandards(file);
+        return Result.success(result);
     }
 }

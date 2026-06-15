@@ -48,12 +48,6 @@ export const businessRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/api/ApiFormView.vue'),
         meta: { title: '编辑接口', permission: 'api:write', hidden: true, group: '数据工程' },
       },
-      {
-        path: ':id/test',
-        name: 'ApiTest',
-        component: () => import('@/views/api/ApiTestView.vue'),
-        meta: { title: '接口测试', permission: 'api:read', hidden: true, group: '数据工程' },
-      },
     ],
   },
   {
@@ -164,6 +158,12 @@ export const businessRoutes: RouteRecordRaw[] = [
     meta: { title: '脚本管理', icon: 'Monitor', permission: 'script:read', group: '数据工程' },
     children: [
       {
+        path: 'category',
+        name: 'ScriptCategory',
+        component: () => import('@/views/script/ScriptCategoryView.vue'),
+        meta: { title: '脚本分类管理', permission: 'script:write', group: '数据工程' },
+      },
+      {
         path: 'list',
         name: 'ScriptList',
         component: () => import('@/views/script/ScriptListView.vue'),
@@ -218,6 +218,12 @@ export const businessRoutes: RouteRecordRaw[] = [
         name: 'TaskExecutions',
         component: () => import('@/views/task/TaskExecutionView.vue'),
         meta: { title: '执行历史', permission: 'task:read', hidden: true, group: '数据工程' },
+      },
+      {
+        path: ':id/trigger-config',
+        name: 'TaskTriggerConfig',
+        component: () => import('@/views/task/TaskTriggerConfigView.vue'),
+        meta: { title: '触发设置', permission: 'task:write', hidden: true, group: '数据工程' },
       },
     ],
   },

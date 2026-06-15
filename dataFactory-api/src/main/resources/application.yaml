@@ -63,6 +63,13 @@ jwt:
   # 刷新令牌过期时间（秒），默认7天
   refresh-token-expiration: 604800
 
+# 脚本执行配置
+script:
+  python:
+    command: python
+  file:
+    storage-path: ./upload/script
+
 # 文件上传配置
 spring.servlet.multipart:
   max-file-size: 100MB
