@@ -1,7 +1,7 @@
 <template>
   <PageContainer title="数据资产管理">
     <el-row :gutter="16">
-      <el-col :span="6">
+      <el-col :span="5">
         <CategoryTree
           :data="treeData"
           title="资产目录"
@@ -12,14 +12,7 @@
           @delete="handleDeleteCategory"
         />
       </el-col>
-      <el-col :span="18">
-        <div class="toolbar">
-          <BatchActions :has-selection="selectedIds.length > 0" :show-category="false" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable">
-            <template #extra>
-              <el-button type="primary" @click="router.push('/asset/create')">新增资产</el-button>
-            </template>
-          </BatchActions>
-        </div>
+      <el-col :span="19">
         <el-form :model="searchForm" inline class="search-bar" @keyup.enter="handleSearch">
           <el-form-item label="关键字">
             <el-input v-model="searchForm.keyword" placeholder="名称/英文名" clearable style="width: 160px" />
@@ -36,6 +29,13 @@
             <el-button @click="handleReset">重置</el-button>
           </el-form-item>
         </el-form>
+        <div class="toolbar">
+          <BatchActions :has-selection="selectedIds.length > 0" :show-category="false" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable">
+            <template #extra>
+              <el-button type="primary" @click="router.push('/asset/create')">新增资产</el-button>
+            </template>
+          </BatchActions>
+        </div>
         <DataTable
           :data="list" :loading="loading" :total="total"
           :current-page="pagination.pageNum" :page-size="pagination.pageSize"
