@@ -7,27 +7,40 @@
       <el-step title="触发设置" description="调度方式配置" />
     </el-steps>
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" style="max-width: 600px">
-      <el-form-item label="任务名称" prop="taskName">
-        <el-input v-model="form.taskName" maxlength="50" placeholder="全局唯一，仅支持中文和英文大小写" />
-      </el-form-item>
-      <el-form-item label="任务分类" prop="categoryId">
-        <el-tree-select
-          v-model="form.categoryId"
-          :data="categories"
-          :props="{ label: 'name', children: 'children', value: 'id' }"
-          placeholder="请选择任务分类"
-          clearable
-          style="width: 100%"
-        />
-      </el-form-item>
-      <el-form-item label="任务描述">
-        <el-input v-model="form.taskDescription" type="textarea" :rows="3" maxlength="500" show-word-limit />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleSave">保存并下一步</el-button>
-        <el-button @click="router.back()">取消</el-button>
-      </el-form-item>
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="task-form">
+      <!-- 基本信息卡片 -->
+      <el-card shadow="never" class="form-card">
+        <template #header>
+          <div class="card-header"><el-icon><InfoFilled /></el-icon> 基本信息</div>
+        </template>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="任务名称" prop="taskName">
+              <el-input v-model="form.taskName" maxlength="50" placeholder="全局唯一，仅支持中文和英文大小写" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="任务分类" prop="categoryId">
+          <el-tree-select
+            v-model="form.categoryId"
+            :data="categories"
+            :props="{ label: 'name', children: 'children', value: 'id' }"
+            placeholder="请选择任务分类"
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="任务描述">
+          <el-input v-model="form.taskDescription" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="描述说明（选填）" />
+        </el-form-item>
+      </el-card>
+
+      <!-- 提交按钮 -->
+      <div class="form-actions">
+        <el-button type="primary" size="large" @click="handleSave">
+          <el-icon><Check /></el-icon> 保存
+        </el-button>
+        <el-button size="large" @click="router.back()">取消</el-button>
+      </div>
     </el-form>
   </PageContainer>
 </template>
@@ -36,6 +49,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { InfoFilled, Check } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import { createTask, updateTask, getTaskDetail, getTaskCategoryTree } from '@/api/task'
 import type { TaskCategory } from '@/types/task'
@@ -92,3 +106,30 @@ async function handleSave() {
   } catch { /* handled */ }
 }
 </script>
+
+<style scoped lang="scss">
+.task-form {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.form-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 0 24px;
+}
+</style>

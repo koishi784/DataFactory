@@ -45,7 +45,7 @@ export function setTaskTriggerConfig(id: number, data: { scheduleType: string; c
 }
 
 export function testRunTask(id: number) {
-  return request.post(`/tasks/${id}/test-run`)
+  return request.post(`/tasks/${id}/test-run`, {})
 }
 
 export function executeTask(id: number) {

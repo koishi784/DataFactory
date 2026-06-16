@@ -35,16 +35,15 @@
             <el-button type="primary" @click="handleSearch">查询</el-button>
             <el-button @click="handleReset">重置</el-button>
           </el-form-item>
-          <el-form-item style="margin-left: auto">
-            <el-button type="primary" @click="router.push('/task/create')">新增任务</el-button>
-          </el-form-item>
         </el-form>
         <div class="toolbar">
-          <div v-if="selectedNode" style="font-size: 13px; color: var(--el-text-color-secondary)">
+          <BatchActions :has-selection="selectedIds.length > 0" :show-category="false" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable">
+            <template #extra>
+              <el-button type="primary" @click="router.push('/task/create')">新增任务</el-button>
+            </template>
+          </BatchActions>
+          <div v-if="selectedNode" style="font-size: 13px; color: var(--el-text-color-secondary); margin-left: auto">
             当前分类：<strong>{{ selectedNode.name }}</strong>
-          </div>
-          <div style="margin-left: auto">
-            <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" />
           </div>
         </div>
         <DataTable

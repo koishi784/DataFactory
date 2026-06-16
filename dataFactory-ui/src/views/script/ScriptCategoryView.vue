@@ -1,7 +1,7 @@
 <template>
   <PageContainer title="脚本分类管理">
     <el-row :gutter="16">
-      <el-col :span="8">
+      <el-col :span="5">
         <CategoryTree
           :data="treeData" title="脚本分类"
           show-add
@@ -11,12 +11,9 @@
           @delete="handleDelete"
         />
       </el-col>
-      <el-col :span="16">
-        <template v-if="selectedNode">
-          <ScriptListByCategory :category-id="selectedNode.id" :category-name="selectedNode.name" />
-        </template>
-        <el-alert v-else title="请选择左侧分类进行管理" type="info" show-icon :closable="false" />
-      </el-col>
+      <el-col :span="19">
+          <ScriptListByCategory :category-id="selectedNode?.id" :category-name="selectedNode?.name" />
+        </el-col>
     </el-row>
 
     <!-- 新增/编辑分类弹窗 -->

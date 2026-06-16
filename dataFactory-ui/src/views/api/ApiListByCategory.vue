@@ -1,12 +1,13 @@
 <template>
   <div class="api-list-by-category">
     <div class="header">
-      <h3 class="title">{{ categoryName }} — 接口列表</h3>
-      <el-button type="primary" size="small" @click="router.push('/api/create')">
-        新增接口
-      </el-button>
+      <h3 class="title">{{ categoryName ? categoryName + ' — 接口列表' : '全部接口' }}</h3>
     </div>
-    <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog" />
+    <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog">
+      <template #extra>
+        <el-button type="primary" @click="router.push('/api/create')">新增接口</el-button>
+      </template>
+    </BatchActions>
     <DataTable
       :data="list" :loading="loading" :total="total"
       :current-page="pagination.pageNum" :page-size="pagination.pageSize"
@@ -107,8 +108,8 @@ import { getApiList, publishApi, disableApi, deleteApi, batchPublishApi, batchDi
 import type { ApiInfo, ApiCategory } from '@/types/api'
 
 const props = defineProps<{
-  categoryId: number
-  categoryName: string
+  categoryId?: number
+  categoryName?: string
 }>()
 
 const router = useRouter()
@@ -207,7 +208,7 @@ async function fetchAllCategories() {
 
 watch(() => props.categoryId, () => {
   fetchData()
-})
+}, { immediate: true })
 
 onMounted(() => {
   fetchAllCategories()

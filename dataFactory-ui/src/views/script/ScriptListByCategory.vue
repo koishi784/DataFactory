@@ -1,12 +1,13 @@
 <template>
   <div class="script-list-by-category">
     <div class="header">
-      <h3 class="title">{{ categoryName }} — 脚本列表</h3>
-      <el-button type="primary" size="small" @click="router.push('/script/create')">
-        新增脚本
-      </el-button>
+      <h3 class="title">{{ categoryName ? categoryName + ' — 脚本列表' : '全部脚本' }}</h3>
     </div>
-    <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog" />
+    <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog">
+      <template #extra>
+        <el-button type="primary" @click="router.push('/script/create')">新增脚本</el-button>
+      </template>
+    </BatchActions>
     <DataTable
       :data="list" :loading="loading" :total="total"
       :current-page="pagination.pageNum" :page-size="pagination.pageSize"
@@ -90,8 +91,8 @@ import { getScriptList, publishScript, disableScript, deleteScript, batchPublish
 import type { Script, ScriptCategory } from '@/types/script'
 
 const props = defineProps<{
-  categoryId: number
-  categoryName: string
+  categoryId?: number
+  categoryName?: string
 }>()
 
 const router = useRouter()
@@ -174,7 +175,7 @@ async function execDebug() {
 
 watch(() => props.categoryId, () => {
   fetchData()
-})
+}, { immediate: true })
 
 onMounted(() => {
   fetchAllCategories()

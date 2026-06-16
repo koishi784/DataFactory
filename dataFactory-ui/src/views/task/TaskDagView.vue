@@ -45,6 +45,7 @@
             @dragover.prevent
             @dragenter.prevent
             @node-double-click="onNodeDoubleClick"
+            @connect="onConnect"
           >
             <Background :gap="20" />
             <Controls />
@@ -57,80 +58,419 @@
     <el-dialog
       v-model="configDialogVisible"
       :title="configNodeTitle"
-      width="600px"
+      width="720px"
       top="5vh"
       :close-on-click-modal="false"
     >
+      <!-- 通用：节点属性 -->
+      <div style="margin-bottom: 16px">
+        <el-form :model="nodeForm" label-width="80px" inline>
+          <el-form-item label="节点名称">
+            <el-input v-model="nodeForm.name" maxlength="50" style="width: 260px" />
+          </el-form-item>
+          <el-form-item v-if="configNodeType !== 'MAPPING'" label="描述">
+            <el-input v-model="nodeForm.description" maxlength="200" style="width: 260px" placeholder="选填" />
+          </el-form-item>
+        </el-form>
+      </div>
+
       <template v-if="configNodeType === 'API'">
-        <el-form :model="apiConfig" label-width="120px">
-          <el-form-item label="注册接口" required>
-            <el-select v-model="apiConfig.apiId" filterable placeholder="请选择注册接口" style="width: 100%">
-              <el-option v-for="a in apiList" :key="a.id" :label="a.apiName" :value="a.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="超时(ms)">
-            <el-input-number v-model="apiConfig.timeout" :min="1" :max="1800000" style="width: 100%" />
-          </el-form-item>
-          <el-form-item label="重试次数">
-            <el-input-number v-model="apiConfig.retryCount" :min="0" :max="5" style="width: 100%" />
-          </el-form-item>
-        </el-form>
+        <el-tabs type="border-card">
+          <!-- ===== 节点配置 ===== -->
+          <el-tab-pane label="节点配置">
+            <el-form label-width="140px">
+              <el-form-item label="API 选择" required>
+                <el-select v-model="apiConfig.apiId" filterable placeholder="请选择注册接口" style="width: 100%">
+                  <el-option v-for="a in apiList" :key="a.id" :label="a.apiName" :value="a.id" />
+                </el-select>
+              </el-form-item>
+
+              <!-- API 参数展示（只读） -->
+              <el-form-item v-if="apiConfig.apiId" label="API 参数">
+                <el-table :data="apiConfig.apiParams" size="small" border style="width: 100%">
+                  <el-table-column prop="paramName" label="参数名称" />
+                  <el-table-column prop="required" label="是否必传" width="80">
+                    <template #default="{ row }">{{ row.required ? '是' : '否' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="dataType" label="数据类型" width="100" />
+                  <el-table-column prop="description" label="参数描述" show-overflow-tooltip />
+                </el-table>
+              </el-form-item>
+
+              <el-divider>输入参数</el-divider>
+              <el-table :data="apiConfig.inputParams" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="参数类型" width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.paramType" size="small" style="width: 100%">
+                      <el-option label="字符串" value="String" />
+                      <el-option label="整型" value="Int" />
+                      <el-option label="浮点型" value="Float" />
+                      <el-option label="布尔型" value="Boolean" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="描述" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.description" size="small" placeholder="选填" /></template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="apiConfig.inputParams.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="apiConfig.inputParams.push({ paramName: '', paramType: 'String', description: '' })">
+                <el-icon><Plus /></el-icon> 新增输入参数
+              </el-button>
+
+              <el-divider>输出参数</el-divider>
+              <el-table :data="apiConfig.outputParams" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="参数类型" width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.paramType" size="small" style="width: 100%">
+                      <el-option label="字符串" value="String" />
+                      <el-option label="整型" value="Int" />
+                      <el-option label="浮点型" value="Float" />
+                      <el-option label="布尔型" value="Boolean" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="描述" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.description" size="small" placeholder="选填" /></template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="apiConfig.outputParams.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="apiConfig.outputParams.push({ paramName: '', paramType: 'String', description: '' })">
+                <el-icon><Plus /></el-icon> 新增输出参数
+              </el-button>
+
+              <el-divider>节点输入参数配置</el-divider>
+              <el-table :data="apiConfig.paramMappings" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="对应上游节点" min-width="140">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamNodeId" size="small" filterable style="width: 100%">
+                      <el-option v-for="n in upstreamNodes" :key="n.id" :label="n.data?.label || n.label" :value="n.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="上游节点参数" min-width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamParam" size="small" filterable style="width: 100%">
+                      <el-option v-for="p in getUpstreamParams(row.upstreamNodeId)" :key="p" :label="p" :value="p" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="测试值" min-width="100">
+                  <template #default="{ row }"><el-input v-model="row.testValue" size="small" placeholder="选填" /></template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="apiConfig.paramMappings.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="apiConfig.paramMappings.push({ paramName: '', upstreamNodeId: '', upstreamParam: '', testValue: '' })">
+                <el-icon><Plus /></el-icon> 新增映射
+              </el-button>
+            </el-form>
+          </el-tab-pane>
+
+          <!-- ===== 存储配置 ===== -->
+          <el-tab-pane label="存储配置">
+            <el-form label-width="140px">
+              <el-form-item label="缓存取数规则" required>
+                <el-radio-group v-model="apiConfig.cacheRule">
+                  <el-radio value="CACHE_FIRST">缓存优先</el-radio>
+                  <el-radio value="API_FIRST">接口优先</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="缓存有效期">
+                <el-input-number v-model="apiConfig.cacheDuration" :min="1" style="width: 140px" />
+                <el-select v-model="apiConfig.cacheUnit" style="width: 100px; margin-left: 8px">
+                  <el-option label="天" value="DAY" />
+                  <el-option label="小时" value="HOUR" />
+                  <el-option label="分钟" value="MINUTE" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </el-tab-pane>
+
+          <!-- ===== 异常处理 ===== -->
+          <el-tab-pane label="异常处理">
+            <el-form label-width="140px">
+              <el-form-item label="选择错误码参数">
+                <el-input v-model="apiConfig.errorCodeParam" placeholder="如：errorCode" style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="错误码映射表">
+                <el-table :data="apiConfig.errorCodeMappings" size="small" stripe border style="width: 100%">
+                  <el-table-column label="编码取值" min-width="100">
+                    <template #default="{ row }"><el-input v-model="row.code" size="small" placeholder="200" /></template>
+                  </el-table-column>
+                  <el-table-column label="编码名称" min-width="120">
+                    <template #default="{ row }"><el-input v-model="row.name" size="small" placeholder="调用成功" /></template>
+                  </el-table-column>
+                  <el-table-column label="编码含义" min-width="160">
+                    <template #default="{ row }"><el-input v-model="row.description" size="small" placeholder="接口调用成功" /></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="65" fixed="right">
+                    <template #default="{ $index }">
+                      <el-button link type="danger" size="small" @click="apiConfig.errorCodeMappings.splice($index, 1)">删除</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-button type="primary" plain size="small" style="margin-top: 8px" @click="apiConfig.errorCodeMappings.push({ code: '', name: '', description: '' })">
+                  <el-icon><Plus /></el-icon> 新增错误码
+                </el-button>
+              </el-form-item>
+              <el-divider>重试机制</el-divider>
+              <el-form-item>
+                <el-checkbox v-model="apiConfig.retryEnabled">启用重试</el-checkbox>
+              </el-form-item>
+              <template v-if="apiConfig.retryEnabled">
+                <el-form-item label="重试次数">
+                  <el-input-number v-model="apiConfig.retryCount" :min="0" :max="10" style="width: 100%" />
+                </el-form-item>
+                <el-form-item label="间隔时长">
+                  <el-input-number v-model="apiConfig.retryInterval" :min="1" :max="300" style="width: 140px" />
+                  <span style="margin-left: 8px">秒</span>
+                </el-form-item>
+              </template>
+            </el-form>
+          </el-tab-pane>
+        </el-tabs>
       </template>
+
       <template v-else-if="configNodeType === 'SCRIPT'">
-        <el-form :model="scriptConfig" label-width="120px">
-          <el-form-item label="关联脚本" required>
-            <el-select v-model="scriptConfig.scriptId" filterable placeholder="请选择脚本" style="width: 100%">
-              <el-option v-for="s in scriptList" :key="s.id" :label="s.scriptName" :value="s.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="脚本版本">
-            <el-input v-model="scriptConfig.scriptVersion" placeholder="不传则使用最新版本" />
-          </el-form-item>
-          <el-form-item label="数据源">
-            <el-select v-model="scriptConfig.dataSourceId" filterable clearable placeholder="选填" style="width: 100%">
-              <el-option v-for="d in dbList" :key="d.id" :label="d.connectionName" :value="d.id" />
-            </el-select>
-          </el-form-item>
-        </el-form>
+        <el-tabs type="border-card">
+          <el-tab-pane label="节点配置">
+            <el-form label-width="140px">
+              <el-form-item label="关联脚本" required>
+                <el-select v-model="scriptConfig.scriptId" filterable placeholder="请选择脚本" style="width: 100%">
+                  <el-option v-for="s in scriptList" :key="s.id" :label="s.scriptName" :value="s.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="脚本版本">
+                <el-input v-model="scriptConfig.scriptVersion" placeholder="不传则使用最新版本" />
+              </el-form-item>
+              <el-form-item label="数据源">
+                <el-select v-model="scriptConfig.dataSourceId" filterable clearable placeholder="选填" style="width: 100%">
+                  <el-option v-for="d in dbList" :key="d.id" :label="d.connectionName" :value="d.id" />
+                </el-select>
+              </el-form-item>
+
+              <el-divider>脚本参数（只读）</el-divider>
+              <el-table :data="scriptConfig.scriptParams" size="small" border style="width: 100%">
+                <el-table-column prop="paramName" label="参数名称" />
+                <el-table-column prop="required" label="是否必传" width="80">
+                  <template #default="{ row }">{{ row.required ? '是' : '否' }}</template>
+                </el-table-column>
+                <el-table-column prop="paramType" label="数据类型" width="100" />
+                <el-table-column prop="description" label="描述" show-overflow-tooltip />
+              </el-table>
+
+              <el-divider>输入参数</el-divider>
+              <el-table :data="scriptConfig.inputParams" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="参数类型" width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.paramType" size="small" style="width: 100%">
+                      <el-option label="字符串" value="String" />
+                      <el-option label="整型" value="Int" />
+                      <el-option label="浮点型" value="Float" />
+                      <el-option label="布尔型" value="Boolean" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="描述" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.description" size="small" placeholder="选填" /></template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="scriptConfig.inputParams.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="scriptConfig.inputParams.push({ paramName: '', paramType: 'String', description: '' })">
+                <el-icon><Plus /></el-icon> 新增输入参数
+              </el-button>
+
+              <el-divider>输出参数</el-divider>
+              <el-table :data="scriptConfig.outputParams" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="参数类型" width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.paramType" size="small" style="width: 100%">
+                      <el-option label="字符串" value="String" />
+                      <el-option label="整型" value="Int" />
+                      <el-option label="浮点型" value="Float" />
+                      <el-option label="布尔型" value="Boolean" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="描述" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.description" size="small" placeholder="选填" /></template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="scriptConfig.outputParams.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="scriptConfig.outputParams.push({ paramName: '', paramType: 'String', description: '' })">
+                <el-icon><Plus /></el-icon> 新增输出参数
+              </el-button>
+
+              <el-divider>节点输入参数配置</el-divider>
+              <el-table :data="scriptConfig.paramMappings" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="参数名称" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.paramName" size="small" placeholder="参数名" /></template>
+                </el-table-column>
+                <el-table-column label="对应上游节点" min-width="140">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamNodeId" size="small" filterable style="width: 100%">
+                      <el-option v-for="n in upstreamNodes" :key="n.id" :label="n.data?.label || n.label" :value="n.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="上游节点参数" min-width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamParam" size="small" filterable style="width: 100%">
+                      <el-option v-for="p in getUpstreamParams(row.upstreamNodeId)" :key="p" :label="p" :value="p" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="scriptConfig.paramMappings.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="scriptConfig.paramMappings.push({ paramName: '', upstreamNodeId: '', upstreamParam: '' })">
+                <el-icon><Plus /></el-icon> 新增映射
+              </el-button>
+            </el-form>
+          </el-tab-pane>
+        </el-tabs>
       </template>
+
       <template v-else-if="configNodeType === 'MAPPING'">
-        <p style="margin-bottom: 8px">字段映射列表：</p>
-        <div v-for="(m, i) in mappingConfig.mappings" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center">
-          <el-input v-model="m.sourceField" placeholder="源字段" size="small" style="width: 140px" />
-          <span>→</span>
-          <el-input v-model="m.targetField" placeholder="目标字段" size="small" style="width: 140px" />
-          <el-input v-model="m.transformRule" placeholder="转换规则" size="small" style="width: 120px" />
-          <el-button size="small" type="danger" link @click="mappingConfig.mappings.splice(i, 1)">删除</el-button>
-        </div>
-        <el-button size="small" @click="mappingConfig.mappings.push({ sourceField: '', targetField: '', transformRule: '' })">+ 新增映射</el-button>
+        <el-tabs type="border-card">
+          <el-tab-pane label="字段映射">
+            <el-table :data="mappingConfig.mappings" size="small" stripe border style="width: 100%">
+              <el-table-column type="index" label="序号" width="55" />
+              <el-table-column label="数据表字段" min-width="120">
+                <template #default="{ row }"><el-input v-model="row.sourceField" size="small" placeholder="字段名" /></template>
+              </el-table-column>
+              <el-table-column label="对应上游节点" min-width="140">
+                <template #default="{ row }">
+                  <el-select v-model="row.upstreamNodeId" size="small" filterable style="width: 100%">
+                    <el-option v-for="n in upstreamNodes" :key="n.id" :label="n.data?.label || n.label" :value="n.id" />
+                  </el-select>
+                </template>
+              </el-table-column>
+              <el-table-column label="上游节点参数" min-width="120">
+                <template #default="{ row }">
+                  <el-select v-model="row.upstreamParam" size="small" filterable style="width: 100%">
+                    <el-option v-for="p in getUpstreamParams(row.upstreamNodeId)" :key="p" :label="p" :value="p" />
+                  </el-select>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="65" fixed="right">
+                <template #default="{ $index }">
+                  <el-button link type="danger" size="small" @click="mappingConfig.mappings.splice($index, 1)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-button type="primary" plain size="small" style="margin-top: 8px" @click="mappingConfig.mappings.push({ sourceField: '', upstreamNodeId: '', upstreamParam: '' })">
+              <el-icon><Plus /></el-icon> 新增映射
+            </el-button>
+          </el-tab-pane>
+        </el-tabs>
       </template>
+
       <template v-else-if="configNodeType === 'OUTPUT'">
-        <el-form :model="outputConfig" label-width="140px">
-          <el-form-item label="输出类型" required>
-            <el-select v-model="outputConfig.outputType" style="width: 100%">
-              <el-option label="数据库" value="DATABASE" />
-              <el-option label="文件" value="FILE" />
-              <el-option label="API推送" value="API_PUSH" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="目标数据源" required>
-            <el-select v-model="outputConfig.targetDataSourceId" filterable placeholder="选择数据源" style="width: 100%">
-              <el-option v-for="d in dbList" :key="d.id" :label="d.connectionName" :value="d.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="目标表名" required>
-            <el-input v-model="outputConfig.targetTable" />
-          </el-form-item>
-          <el-form-item label="写入模式" required>
-            <el-select v-model="outputConfig.writeMode" style="width: 100%">
-              <el-option label="追加" value="INSERT" />
-              <el-option label="存在更新" value="UPSERT" />
-              <el-option label="覆盖" value="OVERWRITE" />
-              <el-option label="追加(APPEND)" value="APPEND" />
-            </el-select>
-          </el-form-item>
-        </el-form>
+        <el-tabs type="border-card">
+          <el-tab-pane label="节点配置">
+            <el-form label-width="140px">
+              <el-form-item label="输出类型" required>
+                <el-select v-model="outputConfig.outputType" style="width: 100%">
+                  <el-option label="数据库" value="DATABASE" />
+                  <el-option label="文件" value="FILE" />
+                  <el-option label="API推送" value="API_PUSH" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="目标数据源" required>
+                <el-select v-model="outputConfig.targetDataSourceId" filterable placeholder="选择数据源" style="width: 100%">
+                  <el-option v-for="d in dbList" :key="d.id" :label="d.connectionName" :value="d.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="目标表名" required>
+                <el-input v-model="outputConfig.targetTable" placeholder="选择数据源后自动加载" />
+              </el-form-item>
+              <el-form-item label="写入模式" required>
+                <el-select v-model="outputConfig.writeMode" style="width: 100%">
+                  <el-option label="追加" value="INSERT" />
+                  <el-option label="存在更新" value="UPSERT" />
+                  <el-option label="覆盖" value="OVERWRITE" />
+                </el-select>
+              </el-form-item>
+
+              <el-divider>字段映射</el-divider>
+              <el-table :data="outputConfig.mappings" size="small" stripe border style="width: 100%">
+                <el-table-column type="index" label="序号" width="55" />
+                <el-table-column label="数据表字段" min-width="120">
+                  <template #default="{ row }"><el-input v-model="row.sourceField" size="small" placeholder="字段名" /></template>
+                </el-table-column>
+                <el-table-column label="对应上游节点" min-width="140">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamNodeId" size="small" filterable style="width: 100%">
+                      <el-option v-for="n in upstreamNodes" :key="n.id" :label="n.data?.label || n.label" :value="n.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="上游节点参数" min-width="120">
+                  <template #default="{ row }">
+                    <el-select v-model="row.upstreamParam" size="small" filterable style="width: 100%">
+                      <el-option v-for="p in getUpstreamParams(row.upstreamNodeId)" :key="p" :label="p" :value="p" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="65" fixed="right">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" size="small" @click="outputConfig.mappings.splice($index, 1)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-button type="primary" plain size="small" style="margin-top: 8px" @click="outputConfig.mappings.push({ sourceField: '', upstreamNodeId: '', upstreamParam: '' })">
+                <el-icon><Plus /></el-icon> 新增字段映射
+              </el-button>
+            </el-form>
+          </el-tab-pane>
+        </el-tabs>
       </template>
+
       <template v-else>
         <el-alert title="该节点无需额外配置" type="info" show-icon :closable="false" />
       </template>
@@ -182,10 +522,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, markRaw, onMounted, h } from 'vue'
+import { ref, reactive, computed, markRaw, onMounted, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Plus } from '@element-plus/icons-vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -205,12 +545,12 @@ const taskId = Number(route.params.id)
 
 // ===== 节点类型定义 =====
 const nodeTypes = [
-  { type: 'START', label: 'Start', color: '#67c23a' },
-  { type: 'API', label: 'API', color: '#409eff' },
-  { type: 'SCRIPT', label: 'Script', color: '#e6a23c' },
-  { type: 'MAPPING', label: 'Mapping', color: '#909399' },
-  { type: 'OUTPUT', label: 'Output', color: '#9b59b6' },
-  { type: 'END', label: 'End', color: '#f56c6c' },
+  { type: 'START', label: '开始', color: '#67c23a' },
+  { type: 'API', label: 'API 接口', color: '#409eff' },
+  { type: 'SCRIPT', label: '脚本', color: '#e6a23c' },
+  { type: 'MAPPING', label: '映射', color: '#909399' },
+  { type: 'OUTPUT', label: '输出', color: '#9b59b6' },
+  { type: 'END', label: '结束', color: '#f56c6c' },
 ]
 
 // 注册自定义节点类型
@@ -230,7 +570,14 @@ const loadingDag = ref(false)
 
 const { screenToFlowCoordinate, addNodes, addEdges, fitView } = useVueFlow({ id: 'dag-flow' })
 
-// ===== 拖拽创建节点 =====
+// ===== 连线处理 =====
+function onConnect(connection: any) {
+  edges.value.push({
+    id: `edge_${Math.random().toString(36).substring(2, 8)}`,
+    source: connection.source,
+    target: connection.target,
+  })
+}
 const canvasWrapperRef = ref<HTMLDivElement | null>(null)
 
 function onDragStart(event: DragEvent, nodeType: string) {
@@ -266,19 +613,81 @@ const configNodeId = ref('')
 const configNodeType = ref('')
 const configNodeTitle = ref('')
 
-const apiConfig = reactive({ apiId: null as number | null, timeout: 30000, retryCount: 0 })
-const scriptConfig = reactive({ scriptId: null as number | null, scriptVersion: '', dataSourceId: null as number | null })
-const mappingConfig = reactive({ mappings: [] as { sourceField: string; targetField: string; transformRule: string }[] })
-const outputConfig = reactive({ outputType: 'DATABASE', targetDataSourceId: null as number | null, targetTable: '', writeMode: 'INSERT' })
+const nodeForm = reactive({
+  name: '',
+  description: '',
+})
+
+const apiConfig = reactive({
+  apiId: null as number | null,
+  apiParams: [] as any[],
+  inputParams: [] as { paramName: string; paramType: string; description: string }[],
+  outputParams: [] as { paramName: string; paramType: string; description: string }[],
+  paramMappings: [] as { paramName: string; upstreamNodeId: string; upstreamParam: string; testValue: string }[],
+  cacheRule: 'CACHE_FIRST',
+  cacheDuration: 30,
+  cacheUnit: 'MINUTE',
+  errorCodeParam: '',
+  errorCodeMappings: [] as { code: string; name: string; description: string }[],
+  retryEnabled: false,
+  retryCount: 3,
+  retryInterval: 5,
+})
+
+const scriptConfig = reactive({
+  scriptId: null as number | null,
+  scriptVersion: '',
+  dataSourceId: null as number | null,
+  scriptParams: [] as any[],
+  inputParams: [] as { paramName: string; paramType: string; description: string }[],
+  outputParams: [] as { paramName: string; paramType: string; description: string }[],
+  paramMappings: [] as { paramName: string; upstreamNodeId: string; upstreamParam: string }[],
+})
+
+const mappingConfig = reactive({
+  mappings: [] as { sourceField: string; upstreamNodeId: string; upstreamParam: string }[],
+})
+
+const outputConfig = reactive({
+  outputType: 'DATABASE',
+  targetDataSourceId: null as number | null,
+  targetTable: '',
+  writeMode: 'INSERT',
+  mappings: [] as { sourceField: string; upstreamNodeId: string; upstreamParam: string }[],
+})
 
 const apiList = ref<any[]>([])
 const scriptList = ref<any[]>([])
 const dbList = ref<any[]>([])
 
 async function loadLists() {
-  try { apiList.value = (await getApiList({ pageNum: 1, pageSize: 100 })) as any } catch {}
-  try { scriptList.value = (await getScriptList({ pageNum: 1, pageSize: 100 })) as any } catch {}
-  try { dbList.value = (await getDatabaseList({ pageNum: 1, pageSize: 100 })) as any } catch {}
+  try {
+    const res = await getScriptList({ pageNum: 1, pageSize: 100, status: 1 }) as any
+    scriptList.value = res?.records || res || []
+  } catch { scriptList.value = [] }
+  try {
+    const res = await getApiList({ pageNum: 1, pageSize: 100, status: 1 }) as any
+    apiList.value = res?.records || res || []
+  } catch { apiList.value = [] }
+  try {
+    const res = await getDatabaseList({ pageNum: 1, pageSize: 100, status: 1 }) as any
+    dbList.value = res?.records || res || []
+  } catch { dbList.value = [] }
+}
+
+// ===== 上游节点列表（用于参数映射下拉） =====
+const upstreamNodes = computed(() => {
+  return nodes.value.filter((n: any) => n.id !== configNodeId.value)
+})
+
+function getUpstreamParams(nodeId: string) {
+  if (!nodeId) return []
+  const n = nodes.value.find((n: any) => n.id === nodeId)
+  if (!n) return []
+  // 从节点 config 中获取输出参数
+  const cfg = n.data?.config
+  if (cfg?.outputParams?.length) return cfg.outputParams.map((p: any) => p.paramName)
+  return []
 }
 
 function onNodeDoubleClick(event: any) {
@@ -287,6 +696,48 @@ function onNodeDoubleClick(event: any) {
   configNodeId.value = node.id
   configNodeType.value = node.type || node.data?.nodeType
   configNodeTitle.value = `配置 - ${node.data?.label || node.label || node.type}`
+  nodeForm.name = node.data?.label || node.label || ''
+  nodeForm.description = node.data?.description || ''
+
+  // 加载已有配置
+  const cfg = node.data?.config || {}
+  if (configNodeType.value === 'API') {
+    Object.assign(apiConfig, {
+      apiId: cfg.apiId ?? null,
+      apiParams: [],
+      inputParams: cfg.inputParams || [],
+      outputParams: cfg.outputParams || [],
+      paramMappings: cfg.paramMappings || [],
+      cacheRule: cfg.cacheRule || 'CACHE_FIRST',
+      cacheDuration: cfg.cacheDuration ?? 30,
+      cacheUnit: cfg.cacheUnit || 'MINUTE',
+      errorCodeParam: cfg.errorCodeParam || '',
+      errorCodeMappings: cfg.errorCodeMappings || [],
+      retryEnabled: cfg.retryEnabled ?? false,
+      retryCount: cfg.retryCount ?? 3,
+      retryInterval: cfg.retryInterval ?? 5,
+    })
+  } else if (configNodeType.value === 'SCRIPT') {
+    Object.assign(scriptConfig, {
+      scriptId: cfg.scriptId ?? null,
+      scriptVersion: cfg.scriptVersion || '',
+      dataSourceId: cfg.dataSourceId ?? null,
+      scriptParams: [],
+      inputParams: cfg.inputParams || [],
+      outputParams: cfg.outputParams || [],
+      paramMappings: cfg.paramMappings || [],
+    })
+  } else if (configNodeType.value === 'MAPPING') {
+    mappingConfig.mappings = cfg.mappings || []
+  } else if (configNodeType.value === 'OUTPUT') {
+    Object.assign(outputConfig, {
+      outputType: cfg.outputType || 'DATABASE',
+      targetDataSourceId: cfg.targetDataSourceId ?? null,
+      targetTable: cfg.targetTable || '',
+      writeMode: cfg.writeMode || 'INSERT',
+      mappings: cfg.mappings || [],
+    })
+  }
   configDialogVisible.value = true
 }
 
@@ -296,14 +747,22 @@ function saveNodeConfig() {
   let cfg: any = {}
   if (configNodeType.value === 'API') {
     cfg = { ...apiConfig }
+    delete cfg.apiParams  // apiParams 是只读展示字段，不保存
   } else if (configNodeType.value === 'SCRIPT') {
     cfg = { ...scriptConfig }
+    delete cfg.scriptParams  // scriptParams 是只读展示字段，不保存
   } else if (configNodeType.value === 'MAPPING') {
     cfg = { mappings: [...mappingConfig.mappings] }
   } else if (configNodeType.value === 'OUTPUT') {
     cfg = { ...outputConfig }
   }
-  n.data = { ...n.data, config: cfg }
+  n.data = {
+    ...n.data,
+    label: nodeForm.name || n.data?.label,
+    description: nodeForm.description || '',
+    config: cfg,
+  }
+  n.label = nodeForm.name || n.label
   configDialogVisible.value = false
   ElMessage.success('节点配置已保存')
 }
@@ -350,11 +809,10 @@ async function handleTestRun() {
 
 // ===== 自动布局 =====
 function handleLayout() {
-  const cols = 3
-  const spacingX = 250
-  const spacingY = 180
+  const spacingY = 120
+  const startX = 100
   nodes.value.forEach((n: any, i: number) => {
-    n.position = { x: (i % cols) * spacingX + 50, y: Math.floor(i / cols) * spacingY + 50 }
+    n.position = { x: startX, y: i * spacingY + 50 }
   })
   fitView()
 }
