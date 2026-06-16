@@ -45,6 +45,13 @@ request.interceptors.response.use(
     if (response.status === 401) {
       const authStore = useAuthStore()
 
+      if (!authStore.refreshToken) {
+        // 没有 refreshToken，无法刷新，清除状态跳转登录
+        authStore.logout()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
       if (!isRefreshing) {
         isRefreshing = true
         try {
@@ -59,6 +66,7 @@ request.interceptors.response.use(
         } catch {
           isRefreshing = false
           pendingRequests = []
+          // 刷新失败，清除状态跳转登录
           authStore.logout()
           window.location.href = '/login'
           return Promise.reject(error)

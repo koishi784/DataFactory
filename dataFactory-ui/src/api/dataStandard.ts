@@ -2,7 +2,7 @@ import request from './request'
 import type { PageParams, PageResult } from '@/types'
 import type { DataStandard } from '@/types/dataStandard'
 
-export function getDataStandardList(params: PageParams & { standardName?: string; standardCode?: string; status?: number }) {
+export function getDataStandardList(params: PageParams & { keyword?: string; status?: number; dataType?: string }) {
   return request.get<PageResult<DataStandard>>('/data-standards', { params })
 }
 
@@ -36,4 +36,18 @@ export function batchPublishDataStandard(ids: number[]) {
 
 export function batchDisableDataStandard(ids: number[]) {
   return request.put('/data-standards/batch/disable', { ids })
+}
+
+/** §7.9 导入模板下载 */
+export function downloadTemplate() {
+  return request.get('/data-standards/template', { responseType: 'blob' })
+}
+
+/** §7.10 标准导入 */
+export function importDataStandard(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/data-standards/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }

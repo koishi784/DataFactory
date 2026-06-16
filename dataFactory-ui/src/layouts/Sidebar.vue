@@ -9,11 +9,11 @@
       :default-active="route.path"
       :collapse="collapsed"
       :router="true"
-      background-color="#001529"
+      background-color="transparent"
       text-color="#ffffffb3"
       active-text-color="#fff"
     >
-      <template v-for="menu in menuList" :key="menu.path">
+      <template v-for="menu in flatMenu" :key="menu.path">
         <!-- 有子菜单 -->
         <el-sub-menu v-if="menu.children?.length && showMenu(menu)" :index="menu.path">
           <template #title>
@@ -51,12 +51,12 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-// 从路由表生成菜单列表
-const menuList = computed<MenuItem[]>(() => {
+// 扁平菜单列表，去掉分组包裹
+const flatMenu = computed<MenuItem[]>(() => {
   return businessRoutes
     .filter((r) => !r.meta?.hidden)
     .map((r) => ({
-      path: r.path?.replace(/^\//, '') || '',
+      path: r.path || '',
       title: (r.meta?.title as string) || '',
       icon: r.meta?.icon as string,
       permission: r.meta?.permission as string,
@@ -78,11 +78,26 @@ function showMenu(menu: MenuItem): boolean {
 
 <style scoped lang="scss">
 .sidebar {
-  background: #001529;
+  position: relative;
+  background: linear-gradient(180deg, #1e1b4b, #312e81);
   transition: width 0.3s;
   overflow: hidden;
 
+  // 网格线覆盖层
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
   .logo {
+    position: relative;
+    z-index: 1;
     height: 60px;
     display: flex;
     align-items: center;
@@ -99,6 +114,8 @@ function showMenu(menu: MenuItem): boolean {
   }
 
   .el-menu {
+    position: relative;
+    z-index: 1;
     border-right: none;
   }
 }

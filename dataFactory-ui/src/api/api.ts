@@ -20,19 +20,19 @@ export function deleteApiCategory(id: number) {
 }
 
 // ===== 接口管理 =====
-export function getApiList(params: PageParams & { apiName?: string; status?: number; categoryId?: number }) {
+export function getApiList(params: PageParams & { keyword?: string; status?: number; categoryId?: number; source?: string }) {
   return request.get<PageResult<ApiInfo>>('/apis', { params })
 }
 
 export function getApiDetail(id: number) {
-  return request.get<ApiInfo>(`/apis/${id}`)
+  return request.get<any>(`/apis/${id}`)
 }
 
-export function createApi(data: Partial<ApiInfo>) {
+export function createApi(data: Record<string, any>) {
   return request.post('/apis', data)
 }
 
-export function updateApi(id: number, data: Partial<ApiInfo>) {
+export function updateApi(id: number, data: Record<string, any>) {
   return request.put(`/apis/${id}`, data)
 }
 

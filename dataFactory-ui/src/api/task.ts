@@ -20,7 +20,7 @@ export function deleteTaskCategory(id: number) {
 }
 
 // ===== 任务管理 =====
-export function getTaskList(params: PageParams & { taskName?: string; status?: number }) {
+export function getTaskList(params: PageParams & { keyword?: string; status?: number; categoryId?: number; scheduleType?: string }) {
   return request.get<PageResult<Task>>('/tasks', { params })
 }
 
@@ -32,6 +32,10 @@ export function createTask(data: Partial<Task>) {
   return request.post('/tasks', data)
 }
 
+export function updateTask(id: number, data: Partial<Task>) {
+  return request.put(`/tasks/${id}`, data)
+}
+
 export function updateTaskDagConfig(id: number, data: { nodes: any[]; edges: any[] }) {
   return request.put(`/tasks/${id}/config`, data)
 }
@@ -41,7 +45,7 @@ export function setTaskTriggerConfig(id: number, data: { scheduleType: string; c
 }
 
 export function testRunTask(id: number) {
-  return request.post(`/tasks/${id}/test-run`)
+  return request.post(`/tasks/${id}/test-run`, {})
 }
 
 export function executeTask(id: number) {

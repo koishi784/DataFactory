@@ -68,7 +68,7 @@ const defaultProps = {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 13px;
+    font-size: 14px;
 
     .tree-node-actions {
       display: none;

@@ -9,5 +9,8 @@ export interface DatabaseConnection extends BaseEntity {
   username: string
   password?: string
   status: number
-  remark?: string
+  description?: string
+  jdbcParams?: string
+  lastTestTime?: string
+  lastTestResult?: number
 }

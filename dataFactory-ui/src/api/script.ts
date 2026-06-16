@@ -20,7 +20,7 @@ export function deleteScriptCategory(id: number) {
 }
 
 // ===== 脚本管理 =====
-export function getScriptList(params: PageParams & { scriptName?: string; scriptType?: string; status?: number }) {
+export function getScriptList(params: PageParams & { keyword?: string; status?: number; categoryId?: number }) {
   return request.get<PageResult<Script>>('/scripts', { params })
 }
 
@@ -58,4 +58,8 @@ export function batchPublishScript(ids: number[]) {
 
 export function batchDisableScript(ids: number[]) {
   return request.put('/scripts/batch/disable', { ids })
+}
+
+export function batchCategoryScript(ids: number[], categoryId: number) {
+  return request.put('/scripts/batch/category', { ids, categoryId })
 }

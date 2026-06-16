@@ -18,34 +18,16 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { routes } from '@/router/routes'
+import router from '@/router'
 
 const route = useRoute()
-const router = useRouter()
 const appStore = useAppStore()
 
 function getLabel(path: string): string {
-  for (const r of routes) {
-    if (r.children) {
-      for (const c of r.children) {
-        if (c.children) {
-          for (const cc of c.children) {
-            if (cc.path && `${r.path}/${c.path}/${cc.path}`.replace(/\/\//g, '/') === path) {
-              return (cc.meta?.title as string) || path
-            }
-          }
-        } else {
-          const fullPath = (r.path + '/' + c.path).replace(/\/\//g, '/')
-          if (fullPath === path) {
-            return (c.meta?.title as string) || path
-          }
-        }
-      }
-    }
-  }
-  return path
+  const resolved = router.resolve(path)
+  return (resolved.meta?.title as string) || path
 }
 
 function removeTag(path: string) {
@@ -64,6 +46,8 @@ function switchTag(pane: { paneName: string }) {
 
 <style scoped lang="scss">
 .tags-view {
+  position: relative;
+  z-index: 1;
   background: #fff;
   border-bottom: 1px solid #e4e7ed;
   padding: 0 8px;

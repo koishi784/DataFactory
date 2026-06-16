@@ -3,6 +3,7 @@ package com.datafactory.core.domain.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.datafactory.common.enums.ParamDirection;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -33,9 +34,9 @@ public class ScriptParam implements Serializable {
     private String paramType;
 
     /**
-     * 参数方向：INPUT / OUTPUT
+     * 参数方向
      */
-    private String paramDirection;
+    private ParamDirection paramDirection;
 
     /**
      * 参数描述
