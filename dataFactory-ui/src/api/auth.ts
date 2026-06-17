@@ -21,7 +21,7 @@ export function refreshToken(refreshToken: string) {
   return request.post<RefreshTokenResult>('/auth/refresh-token', { refreshToken })
 }
 
-export function changePassword(data: { oldPassword: string; newPassword: string }) {
+export function changePassword(data: { oldPassword: string; newPassword: string; confirmPassword: string }) {
   return request.put('/auth/password', data)
 }
 

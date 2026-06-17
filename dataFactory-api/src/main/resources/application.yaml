@@ -75,6 +75,14 @@ spring.servlet.multipart:
   max-file-size: 100MB
   max-request-size: 100MB
 
+# Coze AI 配置
+coze:
+  base-url: https://api.coze.cn
+  api-key: ${COZE_API_KEY}   # 从环境变量 COZE_API_KEY 读取
+  bot-id: 7651877351307100210
+  user-id: 123456789
+  timeout: 60
+
 # 服务器配置
 server:
   port: 8080

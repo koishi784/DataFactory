@@ -23,6 +23,9 @@
         </router-view>
       </el-main>
     </el-container>
+
+    <!-- AI 助手 -->
+    <AiAssistant />
   </el-container>
 </template>
 
@@ -31,6 +34,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import Sidebar from './Sidebar.vue'
 import Navbar from './Navbar.vue'
+import AiAssistant from '@/components/AiAssistant.vue'
 // import TagsView from './TagsView.vue'
 
 const router = useRouter()

@@ -3,6 +3,22 @@
     <div class="header">
       <h3 class="title">{{ categoryName ? categoryName + ' — 脚本列表' : '全部脚本' }}</h3>
     </div>
+    <el-form :model="searchForm" inline class="search-bar" @keyup.enter="handleSearch">
+      <el-form-item label="脚本名称">
+        <el-input v-model="searchForm.keyword" placeholder="脚本名称" clearable style="width: 160px" />
+      </el-form-item>
+      <el-form-item label="脚本状态">
+        <el-select v-model="searchForm.status" placeholder="状态" clearable style="width: 110px">
+          <el-option label="未发布" :value="0" />
+          <el-option label="已发布" :value="1" />
+          <el-option label="已停用" :value="2" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="handleSearch">查询</el-button>
+        <el-button @click="handleReset">重置</el-button>
+      </el-form-item>
+    </el-form>
     <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog">
       <template #extra>
         <el-button type="primary" @click="router.push('/script/create')">新增脚本</el-button>
@@ -18,7 +34,6 @@
       <el-table-column prop="scriptName" label="脚本名称" show-overflow-tooltip min-width="140" />
       <el-table-column prop="description" label="描述" show-overflow-tooltip min-width="160" />
       <el-table-column prop="scriptType" label="脚本类型" width="100" />
-      <el-table-column prop="fileName" label="文件名" show-overflow-tooltip width="140" />
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }"><StatusTag :status="row.status" /></template>
       </el-table-column>
@@ -101,6 +116,7 @@ const selectedRows = ref<any[]>([])
 
 const { list, loading, total, pagination, searchForm, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useCrud<Script>({
   apiGetList: (params) => getScriptList({ ...params, categoryId: props.categoryId }),
+  defaultForm: { keyword: '', status: null as number | null },
 })
 const { handlePublish, handleDisable, handleDelete, handleBatchPublish, handleBatchDisable } = useStatusActions({
   apiPublish: publishScript, apiDisable: disableScript, apiDelete: deleteScript,
@@ -194,5 +210,14 @@ onMounted(() => {
     font-size: 15px;
     font-weight: 600;
   }
+}
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 12px;
 }
 </style>
