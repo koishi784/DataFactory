@@ -3,6 +3,28 @@
     <div class="header">
       <h3 class="title">{{ categoryName ? categoryName + ' — 接口列表' : '全部接口' }}</h3>
     </div>
+    <el-form :model="searchForm" inline class="search-bar" @keyup.enter="handleSearch">
+      <el-form-item label="接口名称">
+        <el-input v-model="searchForm.keyword" placeholder="接口名称" clearable style="width: 160px" />
+      </el-form-item>
+      <el-form-item label="接口来源">
+        <el-select v-model="searchForm.source" placeholder="接口来源" clearable style="width: 120px">
+          <el-option label="手动创建" value="手动创建" />
+          <el-option label="导入" value="导入" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="API状态">
+        <el-select v-model="searchForm.status" placeholder="状态" clearable style="width: 110px">
+          <el-option label="未发布" :value="0" />
+          <el-option label="已发布" :value="1" />
+          <el-option label="已停用" :value="2" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="handleSearch">查询</el-button>
+        <el-button @click="handleReset">重置</el-button>
+      </el-form-item>
+    </el-form>
     <BatchActions :has-selection="selectedIds.length > 0" @batch-publish="handleBatchPublish" @batch-disable="handleBatchDisable" @batch-category="openBatchCategoryDialog">
       <template #extra>
         <el-button type="primary" @click="router.push('/api/create')">新增接口</el-button>
@@ -118,6 +140,7 @@ const selectedRows = ref<any[]>([])
 
 const { list, loading, total, pagination, searchForm, handleSearch, handleReset, handlePageChange, handleSizeChange, fetchData } = useCrud<ApiInfo>({
   apiGetList: (params) => getApiList({ ...params, categoryId: props.categoryId }),
+  defaultForm: { keyword: '', source: '', status: null as number | null },
 })
 const { handlePublish, handleDisable, handleDelete, handleBatchPublish, handleBatchDisable } = useStatusActions({
   apiPublish: publishApi, apiDisable: disableApi, apiDelete: deleteApi,
@@ -227,5 +250,14 @@ onMounted(() => {
     font-size: 15px;
     font-weight: 600;
   }
+}
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 12px;
 }
 </style>

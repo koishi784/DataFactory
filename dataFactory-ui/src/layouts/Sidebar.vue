@@ -120,3 +120,72 @@ function showMenu(menu: MenuItem): boolean {
   }
 }
 </style>
+
+<!-- 侧边栏折叠时 el-menu 弹出框的背景修复（弹出框渲染在 body 层，需全局样式） -->
+<style lang="scss">
+// 子菜单弹出框的外层 el-popper — 透传，让内部 .el-menu--popup 显示
+body .el-popper:has(> .el-menu--popup) {
+  --el-bg-color-overlay: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+// 侧边栏折叠时 el-menu-item 的 tooltip — 匹配 is-dark 的纯文本 tooltip
+body .el-popper.is-dark[role="tooltip"]:not(:has(> .el-menu--popup)) {
+  background: #1e1b4b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+  color: #fff !important;
+  font-size: 13px !important;
+
+  .el-popper__arrow::before {
+    background: #1e1b4b !important;
+  }
+}
+
+// 子菜单弹出框 — 卡片+三角形箭头
+.el-menu--popup {
+  background: #1e1b4b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  padding: 4px 0 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+  min-width: 120px !important;
+
+  // 左侧三角形箭头
+  &::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    background: #1e1b4b;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transform: rotate(45deg);
+  }
+
+  .el-menu-item {
+    height: 28px !important;
+    line-height: 28px !important;
+    color: #ffffffb3 !important;
+    background: transparent !important;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: #fff !important;
+    }
+
+    &.is-active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.12) !important;
+    }
+  }
+}
+</style>
