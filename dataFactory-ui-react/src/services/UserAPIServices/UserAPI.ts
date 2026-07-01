@@ -64,3 +64,16 @@ export async function changePassword(data: {
     data,
   });
 }
+
+// 4.7 修改个人信息
+export async function updateProfile(data: {
+  nickname?: string;
+  email?: string;
+  mobile?: string;
+  remark?: string;
+}) {
+  return request('/auth/profile', {
+    method: 'PUT',
+    data,
+  });
+}
