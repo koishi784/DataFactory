@@ -19,5 +19,12 @@
 - 包管理器: pnpm
 
 ## 快速开始
+# 安装依赖
+pnpm install
 
+# 启动开发服务
+pnpm dev
+
+# 构建生产包
+pnpm build
 ```bash
