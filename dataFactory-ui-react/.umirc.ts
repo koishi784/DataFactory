@@ -1,4 +1,5 @@
 import { defineConfig } from '@umijs/max';
+import { Component } from 'react';
 
 export default defineConfig({
   antd: {},
@@ -11,6 +12,10 @@ export default defineConfig({
   },
   routes: [
     {
+      path: '/',
+      redirect: '/login',
+    },
+    {
       path: '/login',
       name: '登录',
       component: './Login/login',
@@ -21,10 +26,6 @@ export default defineConfig({
       name: '注册',
       component: './Login/register',
       layout: false,
-    },
-    {
-      path: '/',
-      redirect: '/data',
     },
     {
       name: '数据工厂',
@@ -44,9 +45,15 @@ export default defineConfig({
               component: './DataFactory/APIManage',
             },
             {
+              name: '人工注册',
+              path: '/data/source/APIManualRegistration',
+              component: './DataFactory/APIManualRegistration',
+              hideInMenu: true,
+            },
+            {
               name: '数据库管理',
               path: '/data/source/dataManage',
-              component: './DataFactory/DataManage',
+              component: './DataFactory/DataBaseManage',
             },
           ],
         },
@@ -72,6 +79,12 @@ export default defineConfig({
           component: './DataFactory/DataAssetManage',
         },
         {
+          name: '新增资产表',
+          path: '/data/addDataAsset',
+          component: './DataFactory/AddDataAsset',
+          hideInMenu: true,
+        },
+        {
           name: '脚本管理',
           path: '/data/scriptManage',
           component: './DataFactory/ScriptManage',
@@ -81,8 +94,29 @@ export default defineConfig({
           path: '/data/taskManage',
           component: './DataFactory/TaskManage',
         },
+        {
+          name: '新增任务',
+          path: '/data/addTask',
+          component: './DataFactory/AddTask',
+          hideInMenu: true,
+        }
       ],
     },
+    {
+      path: '/userManage',
+      name: '用户管理',
+      routes: [
+        {
+          path: '/userManage',
+          redirect: '/userManage/profile'
+        },
+        {
+          name: '个人信息',
+          path: '/userManage/profile',
+          component: './Login/userManage'
+        }
+      ]
+    }
   ],
   npmClient: 'pnpm',
 });

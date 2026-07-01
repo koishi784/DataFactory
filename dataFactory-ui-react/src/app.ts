@@ -1,6 +1,8 @@
-import { message } from 'antd';
+import React, { createElement } from 'react';
+import { Dropdown, message } from 'antd';
 import logo from './assets/logo.jpg';
-import { getUserInfo } from './services/UserAPIServices/UserAPI';
+
+import { getUserInfo, logout } from './services/UserAPIServices/UserAPI';
 
 // 全局初始化数据配置，用于 Layout 用户信息和权限初始化
 export async function getInitialState(): Promise<{
@@ -19,7 +21,7 @@ export async function getInitialState(): Promise<{
         localStorage.setItem('userInfo', JSON.stringify(response.data));
 
         return {
-          name: response.data?.username || response.data?.nickname || '用户',
+          name: response.data?.username || '用户',
           userInfo: response.data,
           avatar: logo,
           permissionRoutes: response.data?.permissions,
@@ -51,39 +53,40 @@ export const layout = ({ initialState }: any) => {
     },
     title: '数据工厂',
 
-    logout: async () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userInfo');
-      window.location.href = '/login';
-    },
-
-    avatarProps: {
-      render: () => {
-        return initialState?.name || '用户';
-      },
-
-      token: {
-        sider: {
-          colorMenuBackground: '#fff',
-          colorTextMenuTitle: '#333',
-          colorTextMenu: '#333',
-          colorTextMenuSelected: '#1890FF',
-          colorTextMenuItemHover: '#1890FF',
-          colorBgMenuItemHover: 'rgba(24, 144, 255, 0.1)',
-          colorBgMenuItemSelected: 'rgba(24, 144, 255, 0.1)',
-        },
-        header: {
-          colorBgHeader: '#001529',
-          colorHeaderTitle: '#FFFFFF',
-          heightLayoutHeader: 60,
-          colorTextRightActionsItem: '#FFFFFF',
-        },
-        pageContainer: {
-          paddingBlockPageContainerContent: 0,
-          paddingInlinePageContainerContent: 0,
-        },
-      },
+    actionsRender: () => {
+      return [
+        createElement(
+          Dropdown,
+          {
+            key: 'user',
+            menu: {
+              items: [
+                {
+                  key: 'logout',
+                  label: '退出登录',
+                  onClick: async () => {
+                    await logout();
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('userInfo');
+                    window.location.href = '/login';
+                  },
+                },
+              ],
+            },
+          },
+          createElement('span', {
+            style: { display: 'flex', alignItems: 'center', cursor: 'pointer' },
+          },
+            createElement('img', {
+              src: initialState?.avatar,
+              alt: 'avatar',
+              style: { width: 28, height: 28, borderRadius: '50%', marginRight: 8 },
+            }),
+            createElement('span', null, initialState?.name || '用户')
+          )
+        ),
+      ];
     },
   };
 };

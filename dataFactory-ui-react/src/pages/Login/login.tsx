@@ -15,15 +15,13 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await login({
-        account: values.account,
+        account: values.account, 
         password: values.password,
         rememberMe: values.rememberMe,
       });
 
       if (response.data) {
         const { accessToken, refreshToken, userInfo } = response.data;
-
-        // 存储令牌到 localStorage
         localStorage.setItem('token', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('userInfo', JSON.stringify(userInfo));
@@ -84,7 +82,10 @@ const LoginPage: React.FC = () => {
           <Form.Item
             name="password"
             label="密码"
-            rules={[{ required: true, message: '请输入密码' }]}
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 8, message: '密码至少8位' },
+            ]}
           >
             <Input.Password
               prefix={<LockOutlined style={{ color: 'rgba(0,0,0,.45)' }} />}
